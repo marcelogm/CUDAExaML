@@ -8,3 +8,10 @@ examl-MIC
 examl-AVX
 examl-OMP-AVX
 examl-OMP
+examl/cuda/execute
+examl/cuda/compute.cu
+examl/cuda/log
+examl/Makefile.AVX.Teste.gcc
+examl/.vscode/settings.json
+examl/examl
+examl/examl-CUDA
