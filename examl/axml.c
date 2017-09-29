@@ -79,6 +79,10 @@
 #include "mic_native.h"
 #endif
 
+#ifdef __CUDA
+#include "cudaLikelihood.h"
+#endif
+
 /***************** UTILITY FUNCTIONS **************************/
 
 /*pInfo *cleanPinfoInit()
@@ -1992,6 +1996,13 @@ initializePartitions(tree* tr)
       discreteRateCategories(tr->rateHetModel) * sizeof(double));
 #endif
 
+#ifdef __CUDA
+    tr->partitionData[model].cudaPackage = 
+      cudaGPMalloc(tr->partitionData[model].width, 
+                  tr->partitionData[model].states, 
+                  getUndetermined(tr->partitionData[model].dataType) + 1);
+#endif
+
     /* tr->partitionData[model].wgt = (int *)malloc_aligned(width *
      * sizeof(int));	   */
 
@@ -2460,7 +2471,7 @@ assignPartitionsToThreads(tree* tr, int commRank)
 
   deletePartitionAssignment(pAss);
   for (i = 0; i < tr->NumberOfModels; ++i)
-    free(rankPartitions[i]);
+    free(rankPartitions[i]);    
   free(rankPartitions);
 }
 #endif

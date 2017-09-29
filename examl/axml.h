@@ -52,7 +52,9 @@
 
 #define GET_PADDED_WIDTH(w) w % VECTOR_PADDING == 0 ? w : w + (VECTOR_PADDING - (w % VECTOR_PADDING))
 
+#ifndef __CUDACC__ 
 #include <mpi.h>
+#endif 
 
 #ifdef _USE_OMP
 #include "omp.h"
@@ -354,6 +356,43 @@
 
 typedef  int boolean;
 
+#ifdef __CUDA
+
+#define BLOCK_SIZE 256
+
+typedef struct CudaGAMMAPackage {
+  double *x1;
+  double *x2;
+  double *x3;
+  double *extEV;
+  double *tipVector;
+  unsigned char *tipX1;
+  unsigned char *tipX2;
+  double *left;
+  double *right;
+  double *umpX1;
+  double *umpX2;
+
+  size_t states;
+  size_t statesSquare;
+  size_t span;
+  size_t precomputeLength;
+  size_t maxStateValue;
+
+  size_t x1Size;
+  size_t x2Size;
+  size_t x3Size;
+  size_t extEVSize;
+  size_t tipVectorSize;
+  size_t tipXSize;
+  size_t leftRightSize;
+  size_t umpXSize;
+  size_t umpXLargeSize;
+  size_t wgtSize;
+} CudaGP;
+
+#endif
+
 
 typedef struct {
   double lh;
@@ -626,9 +665,11 @@ typedef struct {
   double *mic_umpRight;
 #endif  
 
+#ifdef __CUDA
+  CudaGP * cudaPackage;
+#endif
+
 } pInfo;
-
-
 
 typedef struct 
 {
@@ -1404,12 +1445,12 @@ void newviewGTRGAMMAPROT_AVX_GAPPED_SAVE(int tipCase,
 #endif
 
 
-
+#ifndef __CUDACC__
 /* from communication.c */
 void calculateLengthAndDisplPerProcess(tree *tr, int **length_result, int **disp_result);
 void scatterDistrbutedArray(tree *tr, void *src, void *destination, MPI_Datatype type, int *countPerProc, int *displPerProc);
 void gatherDistributedArray(tree *tr, void **destination, void *src, MPI_Datatype type, int* countPerProc, int *displPerProc);
-
+#endif
 
 #endif
 

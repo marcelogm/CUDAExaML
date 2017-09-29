@@ -62,6 +62,11 @@ const union __attribute__((aligned(BYTE_ALIGNMENT)))
 
 #endif
 
+
+#ifdef __CUDA
+#include "cudaLikelihood.h"
+#endif
+
 /* includes MIC-optimized functions */
 
 #ifdef __MIC_NATIVE
@@ -1129,7 +1134,7 @@ newviewIterative(tree* tr, int startIndex)
          times the number of discrete GAMMA rates (1 for CAT essentially) times
          8 bytes */
             requiredLength = width * rateHet * states * sizeof(double);
-
+           
 /* Initially, even when not using memory saving no space is allocated for inner
    likelihood arrats hence
                    availableLength will be zero at the very first time we
@@ -1324,7 +1329,11 @@ newviewIterative(tree* tr, int startIndex)
                     x1_gapColumn, x2_gapColumn, x3_gapColumn);
 #endif
                 else
-#ifdef __MIC_NATIVE
+#ifdef __CUDA
+                  cudaNewViewGAMMA(tInfo->tipCase, x1_start, x2_start, x3_start,
+                    tr->partitionData[model].EV, tr->partitionData[model].tipVector,
+                    tipX1, tipX2, width, left, right, wgt, &scalerIncrement, tr->partitionData[model].cudaPackage);
+#elif __MIC_NATIVE
                   newviewGTRGAMMA_MIC(tInfo->tipCase, x1_start, x2_start,
                                       x3_start, tr->partitionData[model].mic_EV,
                                       tr->partitionData[model].tipVector, tipX1,
