@@ -1,10 +1,8 @@
-#include "axml.h"    
+#include "axml.h"
 
-__global__ static void cudaTipTipPrecomputeKernel(double *tipVector, double *left,
-                                           double *right, double *umpX1,
-                                           double *umpX2,
-                                           const int maxStateValue,
-                                           const int span, const int states) {
+__global__ static void cudaTipTipPrecomputeKernel(
+    double *tipVector, double *left, double *right, double *umpX1,
+    double *umpX2, const int maxStateValue, const int span, const int states) {
 
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   const int i = n / maxStateValue, k = n % span;
@@ -18,11 +16,10 @@ __global__ static void cudaTipTipPrecomputeKernel(double *tipVector, double *lef
   }
 }
 
-__global__ static void cudaTipTipComputeKernel(double *x3, double *extEV,
-                                        double *umpX1, double *umpX2,
-                                        unsigned char *tipX1,
-                                        unsigned char *tipX2, const int span,
-                                        const int states, const int limit) {
+__global__ static void
+cudaTipTipComputeKernel(double *x3, double *extEV, double *umpX1, double *umpX2,
+                        unsigned char *tipX1, unsigned char *tipX2,
+                        const int span, const int states, const int limit) {
 
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n >= limit)
@@ -42,10 +39,11 @@ __global__ static void cudaTipTipComputeKernel(double *x3, double *extEV,
   }
 }
 
-__global__ static void cudaTipInnerPrecomputeKernel(double *tipVector, double *left,
-                                             double *ump,
-                                             const int maxStateValue,
-                                             const int span, const int states) {
+__global__ static void cudaTipInnerPrecomputeKernel(double *tipVector,
+                                                    double *left, double *ump,
+                                                    const int maxStateValue,
+                                                    const int span,
+                                                    const int states) {
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   const int i = n / maxStateValue, k = n % span;
   int l = 0;
@@ -56,12 +54,11 @@ __global__ static void cudaTipInnerPrecomputeKernel(double *tipVector, double *l
   }
 }
 
-__global__ static void cudaTipInnerComputeKernel(double *x2, double *x3, double *extEV,
-                                          unsigned char *tipX1,
-                                          unsigned char *tipX2, double *right,
-                                          double *umpX1, double *umpX2,
-                                          const int span, const int states,
-                                          const int limit) {
+__global__ static void
+cudaTipInnerComputeKernel(double *x2, double *x3, double *extEV,
+                          unsigned char *tipX1, unsigned char *tipX2,
+                          double *right, double *umpX1, double *umpX2,
+                          const int span, const int states, const int limit) {
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n >= limit)
     return;
@@ -86,10 +83,10 @@ __global__ static void cudaTipInnerComputeKernel(double *x2, double *x3, double 
   }
 }
 
-__global__ static void cudaInnerInnerComputeKernel(double *x1, double *x2, double *x3,
-                                            double *extEV, double *left,
-                                            double *right, const int span,
-                                            const int states, const int limit) {
+__global__ static void
+cudaInnerInnerComputeKernel(double *x1, double *x2, double *x3, double *extEV,
+                            double *left, double *right, const int span,
+                            const int states, const int limit) {
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n >= limit)
     return;
@@ -114,7 +111,8 @@ __global__ static void cudaInnerInnerComputeKernel(double *x1, double *x2, doubl
   }
 }
 
-extern "C" CudaGP *cudaGPMalloc(const int n, const int states, const int maxStateValue) {
+extern "C" CudaGP *cudaGPMalloc(const int n, const int states,
+                                const int maxStateValue) {
   const int statesSquare = states * states, span = states * 4,
             precomputeLength = maxStateValue * span;
 
@@ -170,11 +168,11 @@ int cudaBestGrid(int n) {
   return (n / BLOCK_SIZE) + ((n % BLOCK_SIZE == 0) ? 0 : 1);
 }
 
-extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2, double *x3,
-                             double *extEV, double *tipVector,
-                             unsigned char *tipX1, unsigned char *tipX2, int n,
-                             double *left, double *right, int *wgt,
-                             int *scalerIncrement, CudaGP *p) {
+extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
+                                 double *x3, double *extEV, double *tipVector,
+                                 unsigned char *tipX1, unsigned char *tipX2,
+                                 int n, double *left, double *right, int *wgt,
+                                 int *scalerIncrement, CudaGP *p) {
   int i = 0, l, scale, addScale = 0;
   double *v;
 
