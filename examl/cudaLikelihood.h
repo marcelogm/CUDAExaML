@@ -1,7 +1,9 @@
 #include "axml.h"
 
+extern void cudaGPFillVector(CudaGP *dst, unsigned char *src);
+
 extern CudaGP *cudaGPMalloc(const int n, const int states,
-                            const int maxStateValue);
+                            const int maxStateValue, const int taxa);
 
 extern void cudaGPFree(CudaGP *p);
 
