@@ -1168,9 +1168,13 @@ newviewIterative(tree* tr, int startIndex)
 
           switch (tInfo->tipCase) {
             case TIP_TIP:
+#ifndef __CUDA            
               tipX1 = tr->partitionData[model].yVector[tInfo->qNumber] + offset;
               tipX2 = tr->partitionData[model].yVector[tInfo->rNumber] + offset;
-
+#else
+              tipX1 = tr->partitionData[model].cudaPackage->yVector[tInfo->qNumber] + offset;
+              tipX2 = tr->partitionData[model].cudaPackage->yVector[tInfo->rNumber] + offset;
+#endif
               if (tr->saveMemory) {
                 x1_gapColumn = &(tr->partitionData[model].tipVector[gapOffset]);
                 x2_gapColumn = &(tr->partitionData[model].tipVector[gapOffset]);
@@ -1181,7 +1185,12 @@ newviewIterative(tree* tr, int startIndex)
 
               break;
             case TIP_INNER:
+
+#ifndef __CUDA
               tipX1 = tr->partitionData[model].yVector[tInfo->qNumber] + offset;
+#else
+              tipX1 = tr->partitionData[model].cudaPackage->yVector[tInfo->qNumber] + offset;
+#endif
               x2_start = tr->partitionData[model]
                            .xVector[tInfo->rNumber - tr->mxtips - 1] +
                          x_offset;

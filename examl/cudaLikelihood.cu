@@ -111,8 +111,18 @@ cudaInnerInnerComputeKernel(double *x1, double *x2, double *x3, double *extEV,
   }
 }
 
+extern "C" void cudaGPFillVector(CudaGP *dst, unsigned char *src) {
+  cudaMemcpy(dst->yResource, src, dst->taxa * dst->length * sizeof(unsigned char),
+             cudaMemcpyHostToDevice);
+  int i = 0;
+  dst->yVector = (unsigned char **)calloc(dst->taxa + 1,sizeof(unsigned char *));
+  for(i = 1; i <= dst->taxa; ++i){
+    dst->yVector[i] = dst->yResource + (i - 1) * dst->length;
+  }
+}
+
 extern "C" CudaGP *cudaGPMalloc(const int n, const int states,
-                                const int maxStateValue) {
+                                const int maxStateValue, const int taxa) {
   const int statesSquare = states * states, span = states * 4,
             precomputeLength = maxStateValue * span;
 
@@ -120,8 +130,8 @@ extern "C" CudaGP *cudaGPMalloc(const int n, const int states,
   p->x1Size = sizeof(double) * n * 4 * states;
   p->x2Size = sizeof(double) * n * 4 * states;
   p->x3Size = sizeof(double) * n * 4 * states;
-  p->extEVSize = sizeof(double) * statesSquare;
-  p->tipVectorSize = sizeof(double) * span * states;
+  p->extEVSize = sizeof(double) * statesSquare;p
+  p->tipVectorSize = sizeof(double) * span * states;p
   p->tipXSize = sizeof(unsigned char) * n;
   p->leftRightSize = sizeof(double) * statesSquare * 4;
   p->umpXSize = sizeof(double) * precomputeLength;
@@ -141,6 +151,10 @@ extern "C" CudaGP *cudaGPMalloc(const int n, const int states,
   cudaMalloc(&p->umpX1, p->umpXSize);
   cudaMalloc(&p->umpX2, p->umpXLargeSize);
 
+  cudaMalloc(&p->yResource, taxa * n * sizeof(unsigned char));
+
+  p->length = n;
+  p->taxa = taxa;
   p->states = states;
   p->statesSquare = states * states;
   p->span = states * 4;
@@ -168,6 +182,14 @@ int cudaBestGrid(int n) {
   return (n / BLOCK_SIZE) + ((n % BLOCK_SIZE == 0) ? 0 : 1);
 }
 
+void print_arr_char(unsigned char *arr, const int size) {
+  int i = 0;
+  for (i = 0; i < size; i++) {
+    printf("%d\t", arr[i]);
+  }
+  printf("\n");
+}
+
 extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
                                  double *x3, double *extEV, double *tipVector,
                                  unsigned char *tipX1, unsigned char *tipX2,
@@ -186,15 +208,14 @@ extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
   case TIP_TIP: {
     cudaMemcpy(p->tipVector, tipVector, p->tipVectorSize,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(p->tipX1, tipX1, p->tipXSize, cudaMemcpyHostToDevice);
-    cudaMemcpy(p->tipX2, tipX2, p->tipXSize, cudaMemcpyHostToDevice);
+
     cudaTipTipPrecomputeKernel<<<p->maxStateValue, p->span>>>(
         p->tipVector, p->left, p->right, p->umpX1, p->umpX2, p->maxStateValue,
         p->span, p->states);
 
     const int grid = cudaBestGrid(n * 4);
     cudaTipTipComputeKernel<<<grid, BLOCK_SIZE>>>(p->x3, p->extEV, p->umpX1,
-                                                  p->umpX2, p->tipX1, p->tipX2,
+                                                  p->umpX2, tipX1, tipX2,
                                                   p->span, p->states, n * 4);
 
     cudaMemcpy(x3, p->x3, p->x3Size, cudaMemcpyDeviceToHost);
@@ -203,15 +224,13 @@ extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
     cudaMemcpy(p->x2, x2, p->x2Size, cudaMemcpyHostToDevice);
     cudaMemcpy(p->tipVector, tipVector, p->tipVectorSize,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(p->tipX1, tipX1, p->tipXSize, cudaMemcpyHostToDevice);
-    cudaMemcpy(p->tipX2, tipX2, p->tipXSize, cudaMemcpyHostToDevice);
 
     cudaTipInnerPrecomputeKernel<<<p->maxStateValue, p->span>>>(
         p->tipVector, p->left, p->umpX1, p->maxStateValue, p->span, p->states);
 
     const int grid = cudaBestGrid(n * 4);
     cudaTipInnerComputeKernel<<<grid, BLOCK_SIZE>>>(
-        p->x2, p->x3, p->extEV, p->tipX1, p->tipX2, p->right, p->umpX1,
+        p->x2, p->x3, p->extEV, tipX1, tipX2, p->right, p->umpX1,
         p->umpX2, p->span, p->states, n * 4);
     cudaMemcpy(x3, p->x3, p->x3Size, cudaMemcpyDeviceToHost);
 
