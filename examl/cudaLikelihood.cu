@@ -129,25 +129,21 @@ extern "C" CudaGP *cudaGPMalloc(const int n, const int states,
             precomputeLength = maxStateValue * span;
 
   CudaGP *p = (CudaGP *)malloc(sizeof(CudaGP));
-  p->x1Size = sizeof(double) * n * 4 * states;
-  p->x2Size = sizeof(double) * n * 4 * states;
-  p->x3Size = sizeof(double) * n * 4 * states;
+  p->xSize = sizeof(double) * n * 4 * states;
   p->extEVSize = sizeof(double) * statesSquare;
-  p p->tipVectorSize = sizeof(double) * span * states;
-  p p->tipXSize = sizeof(unsigned char) * n;
+  p->tipVectorSize = sizeof(double) * span * states;
+  p->tipXSize = sizeof(unsigned char) * n;
   p->leftRightSize = sizeof(double) * statesSquare * 4;
   p->umpXSize = sizeof(double) * precomputeLength;
   p->umpXLargeSize = (n * states * 4 < 256) ? sizeof(double) * precomputeLength
                                             : sizeof(double) * n * states * 4;
   p->wgtSize = sizeof(int) * n;
 
-  cudaMalloc(&p->x1, p->x1Size);
-  cudaMalloc(&p->x2, p->x2Size);
-  cudaMalloc(&p->x3, p->x3Size);
+  cudaMalloc(&p->x1, p->xSize);
+  cudaMalloc(&p->x2, p->xSize);
+  cudaMalloc(&p->x3, p->xSize);
   cudaMalloc(&p->extEV, p->extEVSize);
   cudaMalloc(&p->tipVector, p->tipVectorSize);
-  cudaMalloc(&p->tipX1, p->tipXSize);
-  cudaMalloc(&p->tipX2, p->tipXSize);
   cudaMalloc(&p->left, p->leftRightSize);
   cudaMalloc(&p->right, p->leftRightSize);
   cudaMalloc(&p->umpX1, p->umpXSize);
@@ -171,8 +167,6 @@ extern "C" void cudaGPFree(CudaGP *p) {
   cudaFree(p->x3);
   cudaFree(p->extEV);
   cudaFree(p->tipVector);
-  cudaFree(p->tipX1);
-  cudaFree(p->tipX2);
   cudaFree(p->left);
   cudaFree(p->right);
   cudaFree(p->umpX1);
@@ -193,7 +187,7 @@ extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
   double *v;
 
   // Pode ser desnecessario
-  cudaMemcpy(p->x3, x3, p->x3Size, cudaMemcpyHostToDevice);
+  //cudaMemcpy(p->x3, x3, p->xSize, cudaMemcpyHostToDevice);
   cudaMemcpy(p->extEV, extEV, p->extEVSize, cudaMemcpyHostToDevice);
   cudaMemcpy(p->left, left, p->leftRightSize, cudaMemcpyHostToDevice);
   cudaMemcpy(p->right, right, p->leftRightSize, cudaMemcpyHostToDevice);
@@ -212,10 +206,10 @@ extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
                                                   p->umpX2, tipX1, tipX2,
                                                   p->span, p->states, n * 4);
 
-    cudaMemcpy(x3, p->x3, p->x3Size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(x3, p->x3, p->xSize, cudaMemcpyDeviceToHost);
   } break;
   case TIP_INNER: {
-    cudaMemcpy(p->x2, x2, p->x2Size, cudaMemcpyHostToDevice);
+    cudaMemcpy(p->x2, x2, p->xSize, cudaMemcpyHostToDevice);
     cudaMemcpy(p->tipVector, tipVector, p->tipVectorSize,
                cudaMemcpyHostToDevice);
 
@@ -226,7 +220,7 @@ extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
     cudaTipInnerComputeKernel<<<grid, BLOCK_SIZE>>>(
         p->x2, p->x3, p->extEV, tipX1, tipX2, p->right, p->umpX1, p->umpX2,
         p->span, p->states, n * 4);
-    cudaMemcpy(x3, p->x3, p->x3Size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(x3, p->x3, p->xSize, cudaMemcpyDeviceToHost);
 
     for (i = 0; i < n; i++) {
       v = &x3[p->span * i];
@@ -242,14 +236,14 @@ extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
     }
   } break;
   case INNER_INNER: {
-    cudaMemcpy(p->x1, x1, p->x2Size, cudaMemcpyHostToDevice);
-    cudaMemcpy(p->x2, x2, p->x2Size, cudaMemcpyHostToDevice);
+    cudaMemcpy(p->x1, x1, p->xSize, cudaMemcpyHostToDevice);
+    cudaMemcpy(p->x2, x2, p->xSize, cudaMemcpyHostToDevice);
 
     const int grid = cudaBestGrid(n * 4);
     cudaInnerInnerComputeKernel<<<grid, BLOCK_SIZE>>>(
         p->x1, p->x2, p->x3, p->extEV, p->left, p->right, p->span, p->states,
         n * 4);
-    cudaMemcpy(x3, p->x3, p->x3Size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(x3, p->x3, p->xSize, cudaMemcpyDeviceToHost);
 
     for (i = 0; i < n; i++) {
       v = &x3[p->span * i];

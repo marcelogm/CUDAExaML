@@ -366,9 +366,6 @@ typedef struct CudaGAMMAPackage {
   double *x3;
   double *extEV;
   double *tipVector;
-  // Substituir por referencias para yResource
-  unsigned char *tipX1;
-  unsigned char *tipX2;
   double *left;
   double *right;
   double *umpX1;
@@ -385,9 +382,7 @@ typedef struct CudaGAMMAPackage {
   size_t precomputeLength;
   size_t maxStateValue;
 
-  size_t x1Size;
-  size_t x2Size;
-  size_t x3Size;
+  size_t xSize;
   size_t extEVSize;
   size_t tipVectorSize;
   size_t tipXSize;
