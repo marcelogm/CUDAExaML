@@ -371,6 +371,9 @@ typedef struct CudaGAMMAPackage {
   double *umpX1;
   double *umpX2;
 
+  int *wgt;
+  int *addScale;
+
   size_t taxa;
   size_t length;
   unsigned char **yVector;
