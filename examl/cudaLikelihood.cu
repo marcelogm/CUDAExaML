@@ -111,6 +111,27 @@ cudaInnerInnerComputeKernel(double *x1, double *x2, double *x3, double *extEV,
   }
 }
 
+__global__ static void cudaAtomicScale(double *x3, int *addScale, int *wgt,
+                                       int span, int limit) {
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i >= limit)
+    return;
+  double *v = &x3[span * i];
+  int l, scale = 1, atomic = 0;
+  for (l = 0; scale && (l < span); l++) {
+    scale = (ABS(v[l]) < minlikelihood);
+  }
+  if (scale) {
+    for (l = 0; l < span; l++)
+      v[l] *= twotothe256;
+    atomic += wgt[i];
+  }
+  __syncthreads();
+  if (i == 0) {
+    atomicAdd(addScale, atomic);
+  }
+}
+
 extern "C" void cudaGPFillVector(CudaGP *dst, unsigned char *src) {
   cudaMemcpy(dst->yResource, src,
              dst->taxa * dst->length * sizeof(unsigned char),
@@ -138,6 +159,8 @@ extern "C" CudaGP *cudaGPMalloc(const int n, const int states,
   p->umpXLargeSize = (n * states * 4 < 256) ? sizeof(double) * precomputeLength
                                             : sizeof(double) * n * states * 4;
   p->wgtSize = sizeof(int) * n;
+  cudaMalloc(&p->wgt, p->wgtSize);
+  cudaMalloc(&p->addScale, sizeof(int));
 
   cudaMalloc(&p->x1, p->xSize);
   cudaMalloc(&p->x2, p->xSize);
@@ -148,8 +171,10 @@ extern "C" CudaGP *cudaGPMalloc(const int n, const int states,
   cudaMalloc(&p->right, p->leftRightSize);
   cudaMalloc(&p->umpX1, p->umpXSize);
   cudaMalloc(&p->umpX2, p->umpXLargeSize);
-
   cudaMalloc(&p->yResource, taxa * n * sizeof(unsigned char));
+
+  cudaMemset(p->wgt, 0, p->wgtSize);
+  cudaMemset(p->addScale, 0, sizeof(int));
 
   p->length = n;
   p->taxa = taxa;
@@ -174,7 +199,7 @@ extern "C" void cudaGPFree(CudaGP *p) {
   free(p);
 }
 
-int cudaBestGrid(int n) {
+static inline int cudaBestGrid(int n) {
   return (n / BLOCK_SIZE) + ((n % BLOCK_SIZE == 0) ? 0 : 1);
 }
 
@@ -183,11 +208,7 @@ extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
                                  unsigned char *tipX1, unsigned char *tipX2,
                                  int n, double *left, double *right, int *wgt,
                                  int *scalerIncrement, CudaGP *p) {
-  int i = 0, l, scale, addScale = 0;
-  double *v;
-
-  // Pode ser desnecessario
-  //cudaMemcpy(p->x3, x3, p->xSize, cudaMemcpyHostToDevice);
+  int addScale = 0;
   cudaMemcpy(p->extEV, extEV, p->extEVSize, cudaMemcpyHostToDevice);
   cudaMemcpy(p->left, left, p->leftRightSize, cudaMemcpyHostToDevice);
   cudaMemcpy(p->right, right, p->leftRightSize, cudaMemcpyHostToDevice);
@@ -196,15 +217,12 @@ extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
   case TIP_TIP: {
     cudaMemcpy(p->tipVector, tipVector, p->tipVectorSize,
                cudaMemcpyHostToDevice);
-
     cudaTipTipPrecomputeKernel<<<p->maxStateValue, p->span>>>(
         p->tipVector, p->left, p->right, p->umpX1, p->umpX2, p->maxStateValue,
         p->span, p->states);
-
-    const int grid = cudaBestGrid(n * 4);
-    cudaTipTipComputeKernel<<<grid, BLOCK_SIZE>>>(p->x3, p->extEV, p->umpX1,
-                                                  p->umpX2, tipX1, tipX2,
-                                                  p->span, p->states, n * 4);
+    cudaTipTipComputeKernel<<<cudaBestGrid(n * 4), BLOCK_SIZE>>>(
+        p->x3, p->extEV, p->umpX1, p->umpX2, tipX1, tipX2, p->span, p->states,
+        n * 4);
 
     cudaMemcpy(x3, p->x3, p->xSize, cudaMemcpyDeviceToHost);
   } break;
@@ -212,51 +230,32 @@ extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
     cudaMemcpy(p->x2, x2, p->xSize, cudaMemcpyHostToDevice);
     cudaMemcpy(p->tipVector, tipVector, p->tipVectorSize,
                cudaMemcpyHostToDevice);
+    cudaMemcpy(p->wgt, wgt, p->wgtSize, cudaMemcpyHostToDevice);
 
     cudaTipInnerPrecomputeKernel<<<p->maxStateValue, p->span>>>(
         p->tipVector, p->left, p->umpX1, p->maxStateValue, p->span, p->states);
 
-    const int grid = cudaBestGrid(n * 4);
-    cudaTipInnerComputeKernel<<<grid, BLOCK_SIZE>>>(
+    cudaTipInnerComputeKernel<<<cudaBestGrid(n * 4), BLOCK_SIZE>>>(
         p->x2, p->x3, p->extEV, tipX1, tipX2, p->right, p->umpX1, p->umpX2,
         p->span, p->states, n * 4);
-    cudaMemcpy(x3, p->x3, p->xSize, cudaMemcpyDeviceToHost);
 
-    for (i = 0; i < n; i++) {
-      v = &x3[p->span * i];
-      scale = 1;
-      for (l = 0; scale && (l < p->span); l++) {
-        scale = (ABS(v[l]) < minlikelihood);
-      }
-      if (scale) {
-        for (l = 0; l < p->span; l++)
-          v[l] *= twotothe256;
-        addScale += wgt[i];
-      }
-    }
+    cudaAtomicScale<<<cudaBestGrid(n), BLOCK_SIZE>>>(p->x3, p->addScale, p->wgt,
+                                                     p->span, n);
+    cudaMemcpy(x3, p->x3, p->xSize, cudaMemcpyDeviceToHost);
+    cudaMemcpy(&addScale, p->addScale, sizeof(int), cudaMemcpyDeviceToHost);
   } break;
   case INNER_INNER: {
     cudaMemcpy(p->x1, x1, p->xSize, cudaMemcpyHostToDevice);
     cudaMemcpy(p->x2, x2, p->xSize, cudaMemcpyHostToDevice);
+    cudaMemcpy(p->wgt, wgt, p->wgtSize, cudaMemcpyHostToDevice);
 
-    const int grid = cudaBestGrid(n * 4);
-    cudaInnerInnerComputeKernel<<<grid, BLOCK_SIZE>>>(
+    cudaInnerInnerComputeKernel<<<cudaBestGrid(n * 4), BLOCK_SIZE>>>(
         p->x1, p->x2, p->x3, p->extEV, p->left, p->right, p->span, p->states,
         n * 4);
+    cudaAtomicScale<<<cudaBestGrid(n), BLOCK_SIZE>>>(p->x3, p->addScale, p->wgt,
+                                                     p->span, n);
     cudaMemcpy(x3, p->x3, p->xSize, cudaMemcpyDeviceToHost);
-
-    for (i = 0; i < n; i++) {
-      v = &x3[p->span * i];
-      scale = 1;
-      for (l = 0; scale && (l < p->span); l++) {
-        scale = (ABS(v[l]) < minlikelihood);
-      }
-      if (scale) {
-        for (l = 0; l < p->span; l++)
-          v[l] *= twotothe256;
-        addScale += wgt[i];
-      }
-    }
+    cudaMemcpy(&addScale, p->addScale, sizeof(int), cudaMemcpyDeviceToHost);
   } break;
   default:
     assert(0);
