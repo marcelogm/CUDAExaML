@@ -117,18 +117,14 @@ __global__ static void cudaAtomicScale(double *x3, int *addScale, int *wgt,
   if (i >= limit)
     return;
   double *v = &x3[span * i];
-  int l, scale = 1, atomic = 0;
+  int l, scale = 1;
   for (l = 0; scale && (l < span); l++) {
     scale = (ABS(v[l]) < minlikelihood);
   }
   if (scale) {
     for (l = 0; l < span; l++)
       v[l] *= twotothe256;
-    atomic += wgt[i];
-  }
-  __syncthreads();
-  if (i == 0) {
-    atomicAdd(addScale, atomic);
+    atomicAdd(addScale,wgt[i]);
   }
 }
 
