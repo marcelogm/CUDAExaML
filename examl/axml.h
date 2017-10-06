@@ -368,8 +368,15 @@ typedef struct CudaGAMMAPackage {
   double *tipVector;
   double *left;
   double *right;
+  // Buffer desnecessario
+  // Pode ser substituido por um buffer como o *left
+  double *diagptable;
   double *umpX1;
   double *umpX2;
+  
+  double *outputBuffer;
+  double *hReduce;
+  double *dReduce;
 
   int *wgt;
   int *addScale;
@@ -379,6 +386,11 @@ typedef struct CudaGAMMAPackage {
   unsigned char **yVector;
   unsigned char *yResource;
 
+  double **xVector;
+  double *xResource;
+  double *evaluateSum;
+
+  size_t gridSize;
   size_t states;
   size_t statesSquare;
   size_t span;
