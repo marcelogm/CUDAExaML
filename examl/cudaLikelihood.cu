@@ -64,8 +64,8 @@ cudaTipInnerPrecomputeGAMMAKernel(double *t, double *l, double *ump,
 
 __global__ static void
 cudaTipInnerComputeGAMMAKernel(double *x2, double *x3, double *extEV,
-                          unsigned char *tipX1, unsigned char *tipX2,
-                          double *r, double *uX1, double *uX2, const int limit)
+                               unsigned char *tipX1, unsigned char *tipX2,
+                               double *r, double *uX1, double *uX2, const int limit)
 {
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n >= limit)
@@ -105,7 +105,7 @@ cudaTipInnerComputeGAMMAKernel(double *x2, double *x3, double *extEV,
 
 __global__ static void
 cudaInnerInnerComputeGAMMAKernel(double *x1, double *x2, double *x3, double *extEV,
-                            double *left, double *right, const int limit)
+                                 double *left, double *right, const int limit)
 {
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n >= limit)
@@ -113,7 +113,7 @@ cudaInnerInnerComputeGAMMAKernel(double *x1, double *x2, double *x3, double *ext
   int l;
   const int i = n / 4, k = n % 4;
   double x1px2, ar, al;
-  const int offset = 16 * i + 4 * k; 
+  const int offset = 16 * i + 4 * k;
   x1 += offset;
   x2 += offset;
   x3 += offset;
@@ -145,26 +145,25 @@ cudaInnerInnerComputeGAMMAKernel(double *x1, double *x2, double *x3, double *ext
   }
 }
 
-__global__ static void cudaAtomicScale(double *x3, int *addScale, int *wgt,
-                                       int span, int limit)
+__global__ static void cudaGAMMAAtomicScale(double *x3, int *addScale, int *wgt, int limit)
 {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i >= limit)
     return;
-  double *v = &x3[span * i];
+  x3 += 16 * i;
   int l, scale = 1;
-  for (l = 0; scale && (l < span); l++)
+  for (l = 0; scale && (l < 16); l++)
   {
-    scale = (ABS(v[l]) < minlikelihood);
+    scale = (ABS(x3[l]) < minlikelihood);
   }
   if (scale)
   {
-    for (l = 0; l < span; l++)
-      v[l] *= twotothe256;
+    for (l = 0; l < 16; l++)
+      x3[l] *= twotothe256;
     atomicAdd(addScale, wgt[i]);
   }
 }
-
+/*
 __global__ static void
 cudaOptimizedReduceKernel(double *g_idata, double *g_odata, unsigned int n)
 {
@@ -253,7 +252,7 @@ __global__ static void cudaEvaluateRight(int *wptr, double *x1_start,
       term +=
           x1[j * states + k] * x2[j * states + k] * diagptable[j * states + k];
   output[i] = LOG(0.25 * FABS(term));
-}
+}*/
 
 extern "C" void cudaGPFillYVector(CudaGP *dst, unsigned char *src)
 {
@@ -461,8 +460,7 @@ extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
     cudaTipInnerComputeGAMMAKernel<<<cudaBestGrid(n * 4), BLOCK_SIZE>>>(
         p->x2, p->x3, p->extEV, tipX1, tipX2, p->right, p->umpX1, p->umpX2, n * 4);
 
-    cudaAtomicScale<<<cudaBestGrid(n), BLOCK_SIZE>>>(p->x3, p->addScale, p->wgt,
-                                                     p->span, n);
+    cudaGAMMAAtomicScale<<<cudaBestGrid(n), BLOCK_SIZE>>>(p->x3, p->addScale, p->wgt, n);
     cudaMemcpy(x3, p->x3, p->xSize, cudaMemcpyDeviceToHost);
     cudaMemcpy(&addScale, p->addScale, sizeof(int), cudaMemcpyDeviceToHost);
   }
@@ -476,8 +474,7 @@ extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
     cudaInnerInnerComputeGAMMAKernel<<<cudaBestGrid(n * 4), BLOCK_SIZE>>>(
         p->x1, p->x2, p->x3, p->extEV, p->left, p->right,
         n * 4);
-    cudaAtomicScale<<<cudaBestGrid(n), BLOCK_SIZE>>>(p->x3, p->addScale, p->wgt,
-                                                     p->span, n);
+    cudaGAMMAAtomicScale<<<cudaBestGrid(n), BLOCK_SIZE>>>(p->x3, p->addScale, p->wgt, n);
     cudaMemcpy(x3, p->x3, p->xSize, cudaMemcpyDeviceToHost);
     cudaMemcpy(&addScale, p->addScale, sizeof(int), cudaMemcpyDeviceToHost);
   }
