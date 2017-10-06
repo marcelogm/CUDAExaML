@@ -58,6 +58,10 @@
 #include "mic_native.h"
 #endif
 
+#ifdef __CUDA
+#include "cudaLikelihood.h"
+#endif
+
 /*
    global variables of pthreads version, reductionBuffer is the global array
    that is used for implementing deterministic reduction operations, that is,
@@ -746,9 +750,15 @@ evaluateIterative(tree* tr)
                                     tr->partitionData[model].mic_tipVector, tip,
                                     width, diagptable);
 #else
+/*#ifndef __CUDA
+                partitionLikelihood = cudaEvaluateGAMMA(
+                  wgt, x1_start, x2_start, tr->partitionData[model].tipVector,
+                  tip, width, diagptable, states, tr->partitionData[model].cudaPackage);
+#else*/
                 partitionLikelihood = evaluateGTRGAMMA(
                   wgt, x1_start, x2_start, tr->partitionData[model].tipVector,
                   tip, width, diagptable);
+//#endif/*  */
 #endif
             }
           } break;
