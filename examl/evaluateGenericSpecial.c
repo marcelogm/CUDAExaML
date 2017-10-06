@@ -604,9 +604,11 @@ evaluateIterative(tree* tr)
               x_offset;
 
             /* get the corresponding tip vector */
-
+#ifdef __CUDA
+            tip = tr->partitionData[model].cudaPackage->yVector[pNumber] + offset;
+#else 
             tip = tr->partitionData[model].yVector[qNumber] + offset;
-
+#endif
             /* memory saving stuff, let's deal with this later or ask Fernando
              * ;-) */
 
@@ -625,8 +627,11 @@ evaluateIterative(tree* tr)
             x2_start =
               tr->partitionData[model].xVector[qNumber - tr->mxtips - 1] +
               x_offset;
+#ifdef __CUDA
+            tip = tr->partitionData[model].cudaPackage->yVector[pNumber] + offset;
+#else 
             tip = tr->partitionData[model].yVector[pNumber] + offset;
-
+#endif
             if (tr->saveMemory) {
               x2_gap =
                 &(tr->partitionData[model]
