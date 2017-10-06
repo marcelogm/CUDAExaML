@@ -6,9 +6,9 @@ static inline int cudaBestGrid(int n)
 }
 
 __global__ static void
-cudaTipTipPrecomputeGAMMAKernel(double *v, double *l, double *r,
-                                double *umpX1, double *umpX2,
-                                const int maxStateValue)
+cudaPreTTGammaKernel(double *v, double *l, double *r,
+                     double *umpX1, double *umpX2,
+                     const int maxStateValue)
 {
   const int x = blockIdx.x * blockDim.x + threadIdx.x, n = x / 2;
   v += 4 * (n / maxStateValue);
@@ -27,9 +27,9 @@ cudaTipTipPrecomputeGAMMAKernel(double *v, double *l, double *r,
 }
 
 __global__ static void
-cudaTipTipComputeGAMMAKernel(double *v, double *extEV, double *uX1,
-                             double *uX2, unsigned char *tipX1,
-                             unsigned char *tipX2, const int limit)
+cudaTTGammaKernel(double *v, double *extEV, double *uX1,
+                  double *uX2, unsigned char *tipX1,
+                  unsigned char *tipX2, const int limit)
 {
 
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -52,8 +52,8 @@ cudaTipTipComputeGAMMAKernel(double *v, double *extEV, double *uX1,
 }
 
 __global__ static void
-cudaTipInnerPrecomputeGAMMAKernel(double *t, double *l, double *ump,
-                                  const int maxStateValue)
+cudaPreTIPreGammaKernel(double *t, double *l, double *ump,
+                        const int maxStateValue)
 {
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   t += (n / maxStateValue) * 4;
@@ -63,9 +63,9 @@ cudaTipInnerPrecomputeGAMMAKernel(double *t, double *l, double *ump,
 }
 
 __global__ static void
-cudaTipInnerComputeGAMMAKernel(double *x2, double *x3, double *extEV,
-                               unsigned char *tipX1, unsigned char *tipX2,
-                               double *r, double *uX1, double *uX2, const int limit)
+cudaTIGammaKernel(double *x2, double *x3, double *extEV,
+                  unsigned char *tipX1, unsigned char *tipX2,
+                  double *r, double *uX1, double *uX2, const int limit)
 {
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n >= limit)
@@ -104,8 +104,8 @@ cudaTipInnerComputeGAMMAKernel(double *x2, double *x3, double *extEV,
 }
 
 __global__ static void
-cudaInnerInnerComputeGAMMAKernel(double *x1, double *x2, double *x3, double *extEV,
-                                 double *left, double *right, const int limit)
+cudaIIGammaKernel(double *x1, double *x2, double *x3, double *extEV,
+                  double *left, double *right, const int limit)
 {
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n >= limit)
@@ -145,7 +145,7 @@ cudaInnerInnerComputeGAMMAKernel(double *x1, double *x2, double *x3, double *ext
   }
 }
 
-__global__ static void cudaGAMMAAtomicScale(double *x3, int *addScale, int *wgt, int limit)
+__global__ static void cudaAScaleGammaKernel(double *x3, int *addScale, int *wgt, int limit)
 {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i >= limit)
@@ -439,10 +439,10 @@ extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
   {
     cudaMemcpy(p->tipVector, tipVector, p->tipVectorSize,
                cudaMemcpyHostToDevice);
-    cudaTipTipPrecomputeGAMMAKernel<<<p->maxStateValue * 2, p->span>>>(
+    cudaPreTTGammaKernel<<<p->maxStateValue * 2, p->span>>>(
         p->tipVector, p->left, p->right, p->umpX1, p->umpX2, p->maxStateValue);
 
-    cudaTipTipComputeGAMMAKernel<<<cudaBestGrid(n * 4), BLOCK_SIZE>>>(
+    cudaTTGammaKernel<<<cudaBestGrid(n * 4), BLOCK_SIZE>>>(
         p->x3, p->extEV, p->umpX1, p->umpX2, tipX1, tipX2, n * 4);
     cudaMemcpy(x3, p->x3, p->xSize, cudaMemcpyDeviceToHost);
   }
@@ -454,13 +454,13 @@ extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
                cudaMemcpyHostToDevice);
     cudaMemcpy(p->wgt, wgt, p->wgtSize, cudaMemcpyHostToDevice);
 
-    cudaTipInnerPrecomputeGAMMAKernel<<<p->maxStateValue, p->span>>>(
+    cudaPreTIPreGammaKernel<<<p->maxStateValue, p->span>>>(
         p->tipVector, p->left, p->umpX1, p->maxStateValue);
 
-    cudaTipInnerComputeGAMMAKernel<<<cudaBestGrid(n * 4), BLOCK_SIZE>>>(
+    cudaTIGammaKernel<<<cudaBestGrid(n * 4), BLOCK_SIZE>>>(
         p->x2, p->x3, p->extEV, tipX1, tipX2, p->right, p->umpX1, p->umpX2, n * 4);
 
-    cudaGAMMAAtomicScale<<<cudaBestGrid(n), BLOCK_SIZE>>>(p->x3, p->addScale, p->wgt, n);
+    cudaAScaleGammaKernel<<<cudaBestGrid(n), BLOCK_SIZE>>>(p->x3, p->addScale, p->wgt, n);
     cudaMemcpy(x3, p->x3, p->xSize, cudaMemcpyDeviceToHost);
     cudaMemcpy(&addScale, p->addScale, sizeof(int), cudaMemcpyDeviceToHost);
   }
@@ -471,10 +471,10 @@ extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
     cudaMemcpy(p->x2, x2, p->xSize, cudaMemcpyHostToDevice);
     cudaMemcpy(p->wgt, wgt, p->wgtSize, cudaMemcpyHostToDevice);
 
-    cudaInnerInnerComputeGAMMAKernel<<<cudaBestGrid(n * 4), BLOCK_SIZE>>>(
+    cudaIIGammaKernel<<<cudaBestGrid(n * 4), BLOCK_SIZE>>>(
         p->x1, p->x2, p->x3, p->extEV, p->left, p->right,
         n * 4);
-    cudaGAMMAAtomicScale<<<cudaBestGrid(n), BLOCK_SIZE>>>(p->x3, p->addScale, p->wgt, n);
+    cudaAScaleGammaKernel<<<cudaBestGrid(n), BLOCK_SIZE>>>(p->x3, p->addScale, p->wgt, n);
     cudaMemcpy(x3, p->x3, p->xSize, cudaMemcpyDeviceToHost);
     cudaMemcpy(&addScale, p->addScale, sizeof(int), cudaMemcpyDeviceToHost);
   }

@@ -750,15 +750,15 @@ evaluateIterative(tree* tr)
                                     tr->partitionData[model].mic_tipVector, tip,
                                     width, diagptable);
 #else
-/*#ifndef __CUDA
+#ifdef __CUDA
                 partitionLikelihood = cudaEvaluateGAMMA(
                   wgt, x1_start, x2_start, tr->partitionData[model].tipVector,
                   tip, width, diagptable, states, tr->partitionData[model].cudaPackage);
-#else*/
+#else
                 partitionLikelihood = evaluateGTRGAMMA(
                   wgt, x1_start, x2_start, tr->partitionData[model].tipVector,
                   tip, width, diagptable);
-//#endif/*  */
+#endif
 #endif
             }
           } break;
