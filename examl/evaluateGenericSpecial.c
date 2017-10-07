@@ -87,10 +87,9 @@ extern const unsigned int mask32[32];
 /* the function below computes the P matrix from the decomposition of the Q
  * matrix and the respective rate categories for a single partition */
 
-static void
-calcDiagptable(const double z, const int states, const int numberOfCategories,
-               const double* rptr, const double* EIGN, double* diagptable)
-{
+static void calcDiagptable(const double z, const int states,
+                           const int numberOfCategories, const double *rptr,
+                           const double *EIGN, double *diagptable) {
   int i, l;
 
   double lz, *lza = (double *)malloc(sizeof(double) * states);
@@ -126,10 +125,9 @@ calcDiagptable(const double z, const int states, const int numberOfCategories,
   free(lza);
 }
 
-static void
-calcDiagptableFlex_LG4(double z, int numberOfCategories, double* rptr,
-                       double* EIGN[4], double* diagptable, const int numStates)
-{
+static void calcDiagptableFlex_LG4(double z, int numberOfCategories,
+                                   double *rptr, double *EIGN[4],
+                                   double *diagptable, const int numStates) {
   int i, l;
 
   double lz;
@@ -154,11 +152,10 @@ calcDiagptableFlex_LG4(double z, int numberOfCategories, double* rptr,
 /* below a a slow generic implementation of the likelihood computation at the
  * root under the GAMMA model */
 
-static double
-evaluateGAMMA_FLEX(int* wptr, double* x1_start, double* x2_start,
-                   double* tipVector, unsigned char* tipX1, const int n,
-                   double* diagptable, const int states)
-{
+static double evaluateGAMMA_FLEX(int *wptr, double *x1_start, double *x2_start,
+                                 double *tipVector, unsigned char *tipX1,
+                                 const int n, double *diagptable,
+                                 const int states) {
   double sum = 0.0, term, *x1, *x2;
 
   int i, j, k;
@@ -227,11 +224,9 @@ evaluateGAMMA_FLEX(int* wptr, double* x1_start, double* x2_start,
 
 /* a generic and slow implementation of the CAT model of rate heterogeneity */
 
-static double
-evaluateCAT_FLEX(int* cptr, int* wptr, double* x1, double* x2,
-                 double* tipVector, unsigned char* tipX1, int n,
-                 double* diagptable_start, const int states)
-{
+static double evaluateCAT_FLEX(int *cptr, int *wptr, double *x1, double *x2,
+                               double *tipVector, unsigned char *tipX1, int n,
+                               double *diagptable_start, const int states) {
   double sum = 0.0, term, *diagptable, *left, *right;
 
   int i, l;
@@ -318,86 +313,85 @@ evaluateCAT_FLEX(int* cptr, int* wptr, double* x1, double* x2,
 */
 
 #ifdef _OPTIMIZED_FUNCTIONS
-static double evaluateGTRGAMMA_BINARY(int* ex1, int* ex2, int* wptr,
-                                      double* x1_start, double* x2_start,
-                                      double* tipVector, unsigned char* tipX1,
-                                      const int n, double* diagptable,
+static double evaluateGTRGAMMA_BINARY(int *ex1, int *ex2, int *wptr,
+                                      double *x1_start, double *x2_start,
+                                      double *tipVector, unsigned char *tipX1,
+                                      const int n, double *diagptable,
                                       const boolean fastScaling);
 
-static double evaluateGTRCAT_BINARY(int* ex1, int* ex2, int* cptr, int* wptr,
-                                    double* x1_start, double* x2_start,
-                                    double* tipVector, unsigned char* tipX1,
-                                    int n, double* diagptable_start,
+static double evaluateGTRCAT_BINARY(int *ex1, int *ex2, int *cptr, int *wptr,
+                                    double *x1_start, double *x2_start,
+                                    double *tipVector, unsigned char *tipX1,
+                                    int n, double *diagptable_start,
                                     const boolean fastScaling);
 
-static double evaluateGTRGAMMAPROT_LG4(
-  int* ex1, int* ex2, int* wptr, double* x1, double* x2, double* tipVector[4],
-  unsigned char* tipX1, int n, double* diagptable, const boolean fastScaling,
-  double* weights);
+static double
+evaluateGTRGAMMAPROT_LG4(int *ex1, int *ex2, int *wptr, double *x1, double *x2,
+                         double *tipVector[4], unsigned char *tipX1, int n,
+                         double *diagptable, const boolean fastScaling,
+                         double *weights);
 
 /* GAMMA for proteins with memory saving */
 
 static double evaluateGTRGAMMAPROT_GAPPED_SAVE(
-  int* wptr, double* x1, double* x2, double* tipVector, unsigned char* tipX1,
-  int n, double* diagptable, double* x1_gapColumn, double* x2_gapColumn,
-  unsigned int* x1_gap, unsigned int* x2_gap);
+    int *wptr, double *x1, double *x2, double *tipVector, unsigned char *tipX1,
+    int n, double *diagptable, double *x1_gapColumn, double *x2_gapColumn,
+    unsigned int *x1_gap, unsigned int *x2_gap);
 
 /* GAMMA for proteins */
 
-static double evaluateGTRGAMMAPROT(int* wptr, double* x1, double* x2,
-                                   double* tipVector, unsigned char* tipX1,
-                                   int n, double* diagptable);
+static double evaluateGTRGAMMAPROT(int *wptr, double *x1, double *x2,
+                                   double *tipVector, unsigned char *tipX1,
+                                   int n, double *diagptable);
 
 /* CAT for proteins */
 
-static double evaluateGTRCATPROT(int* cptr, int* wptr, double* x1, double* x2,
-                                 double* tipVector, unsigned char* tipX1, int n,
-                                 double* diagptable_start);
+static double evaluateGTRCATPROT(int *cptr, int *wptr, double *x1, double *x2,
+                                 double *tipVector, unsigned char *tipX1, int n,
+                                 double *diagptable_start);
 
 /* CAT for proteins with memory saving */
 
 static double evaluateGTRCATPROT_SAVE(
-  int* cptr, int* wptr, double* x1, double* x2, double* tipVector,
-  unsigned char* tipX1, int n, double* diagptable_start, double* x1_gapColumn,
-  double* x2_gapColumn, unsigned int* x1_gap, unsigned int* x2_gap);
+    int *cptr, int *wptr, double *x1, double *x2, double *tipVector,
+    unsigned char *tipX1, int n, double *diagptable_start, double *x1_gapColumn,
+    double *x2_gapColumn, unsigned int *x1_gap, unsigned int *x2_gap);
 
 /* analogous DNA fuctions */
 
-static double evaluateGTRCAT_SAVE(int* cptr, int* wptr, double* x1_start,
-                                  double* x2_start, double* tipVector,
-                                  unsigned char* tipX1, int n,
-                                  double* diagptable_start,
-                                  double* x1_gapColumn, double* x2_gapColumn,
-                                  unsigned int* x1_gap, unsigned int* x2_gap);
+static double evaluateGTRCAT_SAVE(int *cptr, int *wptr, double *x1_start,
+                                  double *x2_start, double *tipVector,
+                                  unsigned char *tipX1, int n,
+                                  double *diagptable_start,
+                                  double *x1_gapColumn, double *x2_gapColumn,
+                                  unsigned int *x1_gap, unsigned int *x2_gap);
 
 static double evaluateGTRGAMMA_GAPPED_SAVE(
-  int* wptr, double* x1_start, double* x2_start, double* tipVector,
-  unsigned char* tipX1, const int n, double* diagptable, double* x1_gapColumn,
-  double* x2_gapColumn, unsigned int* x1_gap, unsigned int* x2_gap);
+    int *wptr, double *x1_start, double *x2_start, double *tipVector,
+    unsigned char *tipX1, const int n, double *diagptable, double *x1_gapColumn,
+    double *x2_gapColumn, unsigned int *x1_gap, unsigned int *x2_gap);
 
-static double evaluateGTRGAMMA(int* wptr, double* x1_start, double* x2_start,
-                               double* tipVector, unsigned char* tipX1,
-                               const int n, double* diagptable);
+static double evaluateGTRGAMMA(int *wptr, double *x1_start, double *x2_start,
+                               double *tipVector, unsigned char *tipX1,
+                               const int n, double *diagptable);
 
-static double evaluateGTRCAT(int* cptr, int* wptr, double* x1_start,
-                             double* x2_start, double* tipVector,
-                             unsigned char* tipX1, int n,
-                             double* diagptable_start);
+static double evaluateGTRCAT(int *cptr, int *wptr, double *x1_start,
+                             double *x2_start, double *tipVector,
+                             unsigned char *tipX1, int n,
+                             double *diagptable_start);
 
 #endif
 
 /* This is the core function for computing the log likelihood at a branch */
 
-void
-evaluateIterative(tree* tr)
-{
+void evaluateIterative(tree *tr) {
   /* the branch lengths and node indices of the virtual root branch are always
    the first one that
    are stored in the very important traversal array data structure that
    describes a partial or full tree traversal */
 
   /* get the branch length at the root */
-  double* pz = tr->td[0].ti[0].qz;
+  double *pz = tr->td[0].ti[0].qz;
 
   /* get the node number of the node to the left and right of the branch that
    * defines the virtual rooting */
@@ -495,13 +489,13 @@ evaluateIterative(tree* tr)
 
       double *diagptable = (double *)NULL, *perPartitionLH = (double *)NULL;
 
-      unsigned int* globalScaler = (unsigned int*)NULL;
+      unsigned int *globalScaler = (unsigned int *)NULL;
 
 #ifdef _USE_OMP
       int tid = omp_get_thread_num();
 
       /* check if this thread should process this partition */
-      Assign* pAss = tr->threadPartAssigns[tid * tr->maxModelsPerThread + m];
+      Assign *pAss = tr->threadPartAssigns[tid * tr->maxModelsPerThread + m];
 
       if (pAss) {
         model = pAss->partitionId;
@@ -555,23 +549,23 @@ evaluateIterative(tree* tr)
 
             /* get the number of states in the partition, e.g.: 4 = DNA, 20 =
                Protein */
-          states = tr->partitionData[model].states,
+            states = tr->partitionData[model].states,
 
             /* span for single alignment site (in doubles!) */
-          span = rateHet * states;
+            span = rateHet * states;
 
         size_t
-          /* offset for current thread's data in global xVector (in doubles!)
-             */
-          x_offset = offset * (size_t)span;
+            /* offset for current thread's data in global xVector (in doubles!)
+               */
+            x_offset = offset * (size_t)span;
 
         int
-          /* integer weight vector with pattern compression weights */
-          *wgt = tr->partitionData[model].wgt + offset,
+            /* integer weight vector with pattern compression weights */
+            *wgt = tr->partitionData[model].wgt + offset,
 
-          /* integer rate category vector (for each pattern, _number_ of PSR
-             category assigned to it, NOT actual rate!) */
-          *rateCategory = tr->partitionData[model].rateCategory + offset;
+            /* integer rate category vector (for each pattern, _number_ of PSR
+               category assigned to it, NOT actual rate!) */
+            *rateCategory = tr->partitionData[model].rateCategory + offset;
 
         double partitionLikelihood = 0.0,
                *weights = tr->partitionData[model].weights,
@@ -581,7 +575,7 @@ evaluateIterative(tree* tr)
         unsigned int *x1_gap = (unsigned int *)NULL,
                      *x2_gap = (unsigned int *)NULL;
 
-        unsigned char* tip = (unsigned char*)NULL;
+        unsigned char *tip = (unsigned char *)NULL;
 
         /* figure out if we need to address tip vectors (a char array that
      indexes into a precomputed tip likelihood
@@ -600,13 +594,14 @@ evaluateIterative(tree* tr)
          space for additional pointers */
 
             x2_start =
-              tr->partitionData[model].xVector[pNumber - tr->mxtips - 1] +
-              x_offset;
+                tr->partitionData[model].xVector[pNumber - tr->mxtips - 1] +
+                x_offset;
 
-            /* get the corresponding tip vector */
+/* get the corresponding tip vector */
 #ifdef __CUDA
-            tip = tr->partitionData[model].cudaPackage->yVector[pNumber] + offset;
-#else 
+            tip =
+                tr->partitionData[model].cudaPackage->yVector[pNumber] + offset;
+#else
             tip = tr->partitionData[model].yVector[qNumber] + offset;
 #endif
             /* memory saving stuff, let's deal with this later or ask Fernando
@@ -614,32 +609,33 @@ evaluateIterative(tree* tr)
 
             if (tr->saveMemory) {
               x2_gap =
-                &(tr->partitionData[model]
-                    .gapVector[pNumber *
-                               tr->partitionData[model].gapVectorLength]);
-              x2_gapColumn =
-                &(tr->partitionData[model]
-                    .gapColumn[(pNumber - tr->mxtips - 1) * states * rateHet]);
+                  &(tr->partitionData[model]
+                        .gapVector[pNumber *
+                                   tr->partitionData[model].gapVectorLength]);
+              x2_gapColumn = &(tr->partitionData[model]
+                                   .gapColumn[(pNumber - tr->mxtips - 1) *
+                                              states * rateHet]);
             }
           } else {
             /* p is a tip, same as above */
 
             x2_start =
-              tr->partitionData[model].xVector[qNumber - tr->mxtips - 1] +
-              x_offset;
+                tr->partitionData[model].xVector[qNumber - tr->mxtips - 1] +
+                x_offset;
 #ifdef __CUDA
-            tip = tr->partitionData[model].cudaPackage->yVector[pNumber] + offset;
-#else 
+            tip =
+                tr->partitionData[model].cudaPackage->yVector[pNumber] + offset;
+#else
             tip = tr->partitionData[model].yVector[pNumber] + offset;
 #endif
             if (tr->saveMemory) {
               x2_gap =
-                &(tr->partitionData[model]
-                    .gapVector[qNumber *
-                               tr->partitionData[model].gapVectorLength]);
-              x2_gapColumn =
-                &(tr->partitionData[model]
-                    .gapColumn[(qNumber - tr->mxtips - 1) * states * rateHet]);
+                  &(tr->partitionData[model]
+                        .gapVector[qNumber *
+                                   tr->partitionData[model].gapVectorLength]);
+              x2_gapColumn = &(tr->partitionData[model]
+                                   .gapColumn[(qNumber - tr->mxtips - 1) *
+                                              states * rateHet]);
             }
           }
         } else {
@@ -647,27 +643,29 @@ evaluateIterative(tree* tr)
            * inner vectors */
 
           x1_start =
-            tr->partitionData[model].xVector[pNumber - tr->mxtips - 1] +
-            x_offset;
+              tr->partitionData[model].xVector[pNumber - tr->mxtips - 1] +
+              x_offset;
           x2_start =
-            tr->partitionData[model].xVector[qNumber - tr->mxtips - 1] +
-            x_offset;
+              tr->partitionData[model].xVector[qNumber - tr->mxtips - 1] +
+              x_offset;
 
           /* memory saving option */
 
           if (tr->saveMemory) {
-            x1_gap = &(
-              tr->partitionData[model]
-                .gapVector[pNumber * tr->partitionData[model].gapVectorLength]);
-            x2_gap = &(
-              tr->partitionData[model]
-                .gapVector[qNumber * tr->partitionData[model].gapVectorLength]);
+            x1_gap =
+                &(tr->partitionData[model]
+                      .gapVector[pNumber *
+                                 tr->partitionData[model].gapVectorLength]);
+            x2_gap =
+                &(tr->partitionData[model]
+                      .gapVector[qNumber *
+                                 tr->partitionData[model].gapVectorLength]);
             x1_gapColumn =
-              &tr->partitionData[model]
-                 .gapColumn[(pNumber - tr->mxtips - 1) * states * rateHet];
+                &tr->partitionData[model]
+                     .gapColumn[(pNumber - tr->mxtips - 1) * states * rateHet];
             x2_gapColumn =
-              &tr->partitionData[model]
-                 .gapColumn[(qNumber - tr->mxtips - 1) * states * rateHet];
+                &tr->partitionData[model]
+                     .gapColumn[(qNumber - tr->mxtips - 1) * states * rateHet];
           }
         }
 
@@ -682,12 +680,13 @@ evaluateIterative(tree* tr)
 
         if (tr->rateHetModel == CAT)
           partitionLikelihood = evaluateCAT_FLEX(
-            tr->partitionData[model].rateCategory, wgt, x1_start, x2_start,
-            tr->partitionData[model].tipVector, tip, width, diagptable, states);
+              tr->partitionData[model].rateCategory, wgt, x1_start, x2_start,
+              tr->partitionData[model].tipVector, tip, width, diagptable,
+              states);
         else
           partitionLikelihood = evaluateGAMMA_FLEX(
-            wgt, x1_start, x2_start, tr->partitionData[model].tipVector, tip,
-            width, diagptable, states);
+              wgt, x1_start, x2_start, tr->partitionData[model].tipVector, tip,
+              width, diagptable, states);
 #else
 
         /* for the optimized functions we have a dedicated, optimized function
@@ -697,140 +696,137 @@ evaluateIterative(tree* tr)
      and the rate heterogeneity model */
 
         switch (states) {
-          case 2:
+        case 2:
 #ifdef __MIC_NATIVE
-            assert(0 && "Binary data model is not implemented on Intel MIC");
+          assert(0 && "Binary data model is not implemented on Intel MIC");
 #else
-            assert(!tr->saveMemory);
-            if (tr->rateHetModel == CAT)
-              partitionLikelihood = evaluateGTRCAT_BINARY(
-                (int*)NULL, (int*)NULL, rateCategory, wgt, x1_start, x2_start,
+          assert(!tr->saveMemory);
+          if (tr->rateHetModel == CAT)
+            partitionLikelihood = evaluateGTRCAT_BINARY(
+                (int *)NULL, (int *)NULL, rateCategory, wgt, x1_start, x2_start,
                 tr->partitionData[model].tipVector, tip, width, diagptable,
                 TRUE);
-            else
-              partitionLikelihood = evaluateGTRGAMMA_BINARY(
-                (int*)NULL, (int*)NULL, wgt, x1_start, x2_start,
+          else
+            partitionLikelihood = evaluateGTRGAMMA_BINARY(
+                (int *)NULL, (int *)NULL, wgt, x1_start, x2_start,
                 tr->partitionData[model].tipVector, tip, width, diagptable,
                 TRUE);
 #endif
-            break;
-          case 4: /* DNA */
-          {
-            if (tr->rateHetModel == CAT) {
-              if (tr->saveMemory)
+          break;
+        case 4: /* DNA */
+        {
+          if (tr->rateHetModel == CAT) {
+            if (tr->saveMemory)
 #ifdef __MIC_NATIVE
-                assert(0 &&
-                       "Neither CAT model of rate heterogeneity nor memory "
-                       "saving are implemented on Intel MIC");
+              assert(0 && "Neither CAT model of rate heterogeneity nor memory "
+                          "saving are implemented on Intel MIC");
 #else
-                partitionLikelihood = evaluateGTRCAT_SAVE(
+              partitionLikelihood = evaluateGTRCAT_SAVE(
                   rateCategory, wgt, x1_start, x2_start,
                   tr->partitionData[model].tipVector, tip, width, diagptable,
                   x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
 #endif
-              else
+            else
 #ifdef __MIC_NATIVE
-                assert(0 &&
-                       "CAT model of rate heterogeneity is not implemented "
-                       "on Intel MIC");
+              assert(0 && "CAT model of rate heterogeneity is not implemented "
+                          "on Intel MIC");
 #else
-                partitionLikelihood = evaluateGTRCAT(
+              partitionLikelihood = evaluateGTRCAT(
                   rateCategory, wgt, x1_start, x2_start,
                   tr->partitionData[model].tipVector, tip, width, diagptable);
 #endif
-            } else {
-              if (tr->saveMemory)
+          } else {
+            if (tr->saveMemory)
 #ifdef __MIC_NATIVE
-                assert(0 && "Memory saving is not implemented on Intel MIC");
+              assert(0 && "Memory saving is not implemented on Intel MIC");
 #else
-                partitionLikelihood = evaluateGTRGAMMA_GAPPED_SAVE(
+              partitionLikelihood = evaluateGTRGAMMA_GAPPED_SAVE(
                   wgt, x1_start, x2_start, tr->partitionData[model].tipVector,
                   tip, width, diagptable, x1_gapColumn, x2_gapColumn, x1_gap,
                   x2_gap);
 #endif
-              else
+            else
 #ifdef __MIC_NATIVE
-                partitionLikelihood =
+              partitionLikelihood =
                   evaluateGAMMA_MIC(wgt, x1_start, x2_start,
                                     tr->partitionData[model].mic_tipVector, tip,
                                     width, diagptable);
 #else
 #ifdef __CUDA
-                partitionLikelihood = cudaEvaluateGAMMA(
+              partitionLikelihood = cudaEvaluateGAMMA(
                   wgt, x1_start, x2_start, tr->partitionData[model].tipVector,
-                  tip, width, diagptable, states, tr->partitionData[model].cudaPackage);
+                  tip, width, diagptable, states,
+                  tr->partitionData[model].cudaPackage);
 #else
-                partitionLikelihood = evaluateGTRGAMMA(
+              partitionLikelihood = evaluateGTRGAMMA(
                   wgt, x1_start, x2_start, tr->partitionData[model].tipVector,
                   tip, width, diagptable);
 #endif
 #endif
-            }
-          } break;
-          case 20: /* proteins */
-          {
-            if (tr->rateHetModel == CAT) {
-              if (tr->saveMemory)
+          }
+        } break;
+        case 20: /* proteins */
+        {
+          if (tr->rateHetModel == CAT) {
+            if (tr->saveMemory)
 #ifdef __MIC_NATIVE
-                assert(0 &&
-                       "Neither CAT model of rate heterogeneity nor memory "
-                       "saving are implemented on Intel MIC");
+              assert(0 && "Neither CAT model of rate heterogeneity nor memory "
+                          "saving are implemented on Intel MIC");
 #else
-                partitionLikelihood = evaluateGTRCATPROT_SAVE(
+              partitionLikelihood = evaluateGTRCATPROT_SAVE(
                   rateCategory, wgt, x1_start, x2_start,
                   tr->partitionData[model].tipVector, tip, width, diagptable,
                   x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
 #endif
-              else
+            else
 #ifdef __MIC_NATIVE
-                assert(0 &&
-                       "CAT model of rate heterogeneity is not implemented "
-                       "on Intel MIC");
+              assert(0 && "CAT model of rate heterogeneity is not implemented "
+                          "on Intel MIC");
 #else
-                partitionLikelihood = evaluateGTRCATPROT(
+              partitionLikelihood = evaluateGTRCATPROT(
                   rateCategory, wgt, x1_start, x2_start,
                   tr->partitionData[model].tipVector, tip, width, diagptable);
 #endif
-            } else {
-              if (tr->saveMemory)
+          } else {
+            if (tr->saveMemory)
 #ifdef __MIC_NATIVE
-                assert(0 && "Memory saving is not implemented on Intel MIC");
+              assert(0 && "Memory saving is not implemented on Intel MIC");
 #else
-                partitionLikelihood = evaluateGTRGAMMAPROT_GAPPED_SAVE(
+              partitionLikelihood = evaluateGTRGAMMAPROT_GAPPED_SAVE(
                   wgt, x1_start, x2_start, tr->partitionData[model].tipVector,
                   tip, width, diagptable, x1_gapColumn, x2_gapColumn, x1_gap,
                   x2_gap);
 #endif
-              else {
-                if (tr->partitionData[model].protModels == LG4M ||
-                    tr->partitionData[model].protModels == LG4X)
+            else {
+              if (tr->partitionData[model].protModels == LG4M ||
+                  tr->partitionData[model].protModels == LG4X)
 #ifdef __MIC_NATIVE
-                  partitionLikelihood = evaluateGAMMAPROT_LG4_MIC(
+                partitionLikelihood = evaluateGAMMAPROT_LG4_MIC(
                     wgt, x1_start, x2_start,
                     tr->partitionData[model].mic_tipVector, tip, width,
                     diagptable, weights);
 #else
-                  partitionLikelihood = evaluateGTRGAMMAPROT_LG4(
-                    (int*)NULL, (int*)NULL, wgt, x1_start, x2_start,
+                partitionLikelihood = evaluateGTRGAMMAPROT_LG4(
+                    (int *)NULL, (int *)NULL, wgt, x1_start, x2_start,
                     tr->partitionData[model].tipVector_LG4, tip, width,
                     diagptable, TRUE, weights);
 #endif
-                else
+              else
 #ifdef __MIC_NATIVE
-                  partitionLikelihood = evaluateGAMMAPROT_MIC(
+                partitionLikelihood = evaluateGAMMAPROT_MIC(
                     wgt, x1_start, x2_start,
                     tr->partitionData[model].mic_tipVector, tip, width,
                     diagptable);
 #else
-                  partitionLikelihood = evaluateGTRGAMMAPROT(
+                partitionLikelihood = evaluateGTRGAMMAPROT(
                     wgt, x1_start, x2_start, tr->partitionData[model].tipVector,
                     tip, width, diagptable);
 #endif
-              }
             }
-          } break;
-          default:
-            assert(0);
+          }
+        } break;
+        default:
+          assert(0);
         }
 #endif
 
@@ -850,8 +846,8 @@ evaluateIterative(tree* tr)
      There's a copy of this book in my office
   */
 
-        partitionLikelihood +=
-          (globalScaler[pNumber] + globalScaler[qNumber]) * LOG(minlikelihood);
+        partitionLikelihood += (globalScaler[pNumber] + globalScaler[qNumber]) *
+                               LOG(minlikelihood);
 
         /* check that there was no major numerical screw-up, the log likelihood
          * should be < 0.0 always */
@@ -894,22 +890,20 @@ evaluateIterative(tree* tr)
 
     tr->perPartitionLH[model] = 0.0;
     for (t = 0; t < tr->maxThreadsPerModel; t++) {
-      Assign* pAss = tr->partThreadAssigns[model * tr->maxThreadsPerModel + t];
+      Assign *pAss = tr->partThreadAssigns[model * tr->maxThreadsPerModel + t];
 
       if (pAss) {
         int tid = pAss->procId;
 
         tr->perPartitionLH[model] +=
-          tr->partitionData[model].reductionBuffer[tid];
+            tr->partitionData[model].reductionBuffer[tid];
       }
     }
   }
 #endif
 }
 
-void
-evaluateGeneric(tree* tr, nodeptr p, boolean fullTraversal)
-{
+void evaluateGeneric(tree *tr, nodeptr p, boolean fullTraversal) {
   /* now this may be the entry point of the library to compute
    the log like at a branch defined by p and p->back == q */
 
@@ -976,7 +970,7 @@ evaluateGeneric(tree* tr, nodeptr p, boolean fullTraversal)
   evaluateIterative(tr);
 
   {
-    double* recv = (double*)malloc(sizeof(double) * tr->NumberOfModels);
+    double *recv = (double *)malloc(sizeof(double) * tr->NumberOfModels);
 
 #ifdef _USE_ALLREDUCE
     MPI_Allreduce(tr->perPartitionLH, recv, tr->NumberOfModels, MPI_DOUBLE,
@@ -1016,12 +1010,11 @@ evaluateGeneric(tree* tr, nodeptr p, boolean fullTraversal)
 
 /* binary data */
 
-static double
-evaluateGTRCAT_BINARY(int* ex1, int* ex2, int* cptr, int* wptr,
-                      double* x1_start, double* x2_start, double* tipVector,
-                      unsigned char* tipX1, int n, double* diagptable_start,
-                      const boolean fastScaling)
-{
+static double evaluateGTRCAT_BINARY(int *ex1, int *ex2, int *cptr, int *wptr,
+                                    double *x1_start, double *x2_start,
+                                    double *tipVector, unsigned char *tipX1,
+                                    int n, double *diagptable_start,
+                                    const boolean fastScaling) {
   double sum = 0.0, term;
   int i;
   double *diagptable, *x1, *x2;
@@ -1036,8 +1029,8 @@ evaluateGTRCAT_BINARY(int* ex1, int* ex2, int* cptr, int* wptr,
       diagptable = &(diagptable_start[2 * cptr[i]]);
 
       _mm_store_pd(
-        t, _mm_mul_pd(_mm_load_pd(x1),
-                      _mm_mul_pd(_mm_load_pd(x2), _mm_load_pd(diagptable))));
+          t, _mm_mul_pd(_mm_load_pd(x1),
+                        _mm_mul_pd(_mm_load_pd(x2), _mm_load_pd(diagptable))));
 
       if (fastScaling)
         term = log(fabs(t[0] + t[1]));
@@ -1056,14 +1049,14 @@ evaluateGTRCAT_BINARY(int* ex1, int* ex2, int* cptr, int* wptr,
       diagptable = &diagptable_start[2 * cptr[i]];
 
       _mm_store_pd(
-        t, _mm_mul_pd(_mm_load_pd(x1),
-                      _mm_mul_pd(_mm_load_pd(x2), _mm_load_pd(diagptable))));
+          t, _mm_mul_pd(_mm_load_pd(x1),
+                        _mm_mul_pd(_mm_load_pd(x2), _mm_load_pd(diagptable))));
 
       if (fastScaling)
         term = log(fabs(t[0] + t[1]));
       else
         term =
-          log(fabs(t[0] + t[1])) + ((ex1[i] + ex2[i]) * log(minlikelihood));
+            log(fabs(t[0] + t[1])) + ((ex1[i] + ex2[i]) * log(minlikelihood));
 
       sum += wptr[i] * term;
     }
@@ -1072,12 +1065,11 @@ evaluateGTRCAT_BINARY(int* ex1, int* ex2, int* cptr, int* wptr,
   return sum;
 }
 
-static double
-evaluateGTRGAMMA_BINARY(int* ex1, int* ex2, int* wptr, double* x1_start,
-                        double* x2_start, double* tipVector,
-                        unsigned char* tipX1, const int n, double* diagptable,
-                        const boolean fastScaling)
-{
+static double evaluateGTRGAMMA_BINARY(int *ex1, int *ex2, int *wptr,
+                                      double *x1_start, double *x2_start,
+                                      double *tipVector, unsigned char *tipX1,
+                                      const int n, double *diagptable,
+                                      const boolean fastScaling) {
   double sum = 0.0, term;
   int i, j;
   double *x1, *x2;
@@ -1151,11 +1143,10 @@ evaluateGTRGAMMA_BINARY(int* ex1, int* ex2, int* wptr, double* x1_start,
 /* binary data end */
 
 static double
-evaluateGTRGAMMAPROT_LG4(int* ex1, int* ex2, int* wptr, double* x1, double* x2,
-                         double* tipVector[4], unsigned char* tipX1, int n,
-                         double* diagptable, const boolean fastScaling,
-                         double* weights)
-{
+evaluateGTRGAMMAPROT_LG4(int *ex1, int *ex2, int *wptr, double *x1, double *x2,
+                         double *tipVector[4], unsigned char *tipX1, int n,
+                         double *diagptable, const boolean fastScaling,
+                         double *weights) {
   double sum = 0.0, term;
   int i, j, l;
   double *left, *right;
@@ -1166,7 +1157,7 @@ evaluateGTRGAMMAPROT_LG4(int* ex1, int* ex2, int* wptr, double* x1, double* x2,
       __m128d tv = _mm_setzero_pd();
 
       for (j = 0, term = 0.0; j < 4; j++) {
-        double* d = &diagptable[j * 20];
+        double *d = &diagptable[j * 20];
 
         __m128d t = _mm_setzero_pd(), w = _mm_set1_pd(weights[j]);
 
@@ -1175,7 +1166,7 @@ evaluateGTRGAMMAPROT_LG4(int* ex1, int* ex2, int* wptr, double* x1, double* x2,
 
         for (l = 0; l < 20; l += 2) {
           __m128d mul =
-            _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
+              _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
           t = _mm_add_pd(t, _mm_mul_pd(mul, _mm_load_pd(&d[l])));
         }
 
@@ -1211,7 +1202,7 @@ evaluateGTRGAMMAPROT_LG4(int* ex1, int* ex2, int* wptr, double* x1, double* x2,
       __m128d tv = _mm_setzero_pd();
 
       for (j = 0, term = 0.0; j < 4; j++) {
-        double* d = &diagptable[j * 20];
+        double *d = &diagptable[j * 20];
 
         __m128d t = _mm_setzero_pd(), w = _mm_set1_pd(weights[j]);
 
@@ -1220,7 +1211,7 @@ evaluateGTRGAMMAPROT_LG4(int* ex1, int* ex2, int* wptr, double* x1, double* x2,
 
         for (l = 0; l < 20; l += 2) {
           __m128d mul =
-            _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
+              _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
           t = _mm_add_pd(t, _mm_mul_pd(mul, _mm_load_pd(&d[l])));
         }
 
@@ -1256,13 +1247,10 @@ evaluateGTRGAMMAPROT_LG4(int* ex1, int* ex2, int* wptr, double* x1, double* x2,
   return sum;
 }
 
-static double
-evaluateGTRGAMMAPROT_GAPPED_SAVE(int* wptr, double* x1, double* x2,
-                                 double* tipVector, unsigned char* tipX1, int n,
-                                 double* diagptable, double* x1_gapColumn,
-                                 double* x2_gapColumn, unsigned int* x1_gap,
-                                 unsigned int* x2_gap)
-{
+static double evaluateGTRGAMMAPROT_GAPPED_SAVE(
+    int *wptr, double *x1, double *x2, double *tipVector, unsigned char *tipX1,
+    int n, double *diagptable, double *x1_gapColumn, double *x2_gapColumn,
+    unsigned int *x1_gap, unsigned int *x2_gap) {
   double sum = 0.0, term;
   int i, j, l;
   double *left, *right, *x1_ptr = x1, *x2_ptr = x2, *x1v, *x2v;
@@ -1280,11 +1268,11 @@ evaluateGTRGAMMAPROT_GAPPED_SAVE(int* wptr, double* x1, double* x2,
       left = &(tipVector[20 * tipX1[i]]);
 
       for (j = 0, term = 0.0; j < 4; j++) {
-        double* d = &diagptable[j * 20];
+        double *d = &diagptable[j * 20];
         right = &(x2v[20 * j]);
         for (l = 0; l < 20; l += 2) {
           __m128d mul =
-            _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
+              _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
           tv = _mm_add_pd(tv, _mm_mul_pd(mul, _mm_load_pd(&d[l])));
         }
       }
@@ -1315,13 +1303,13 @@ evaluateGTRGAMMAPROT_GAPPED_SAVE(int* wptr, double* x1, double* x2,
       __m128d tv = _mm_setzero_pd();
 
       for (j = 0, term = 0.0; j < 4; j++) {
-        double* d = &diagptable[j * 20];
+        double *d = &diagptable[j * 20];
         left = &(x1v[20 * j]);
         right = &(x2v[20 * j]);
 
         for (l = 0; l < 20; l += 2) {
           __m128d mul =
-            _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
+              _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
           tv = _mm_add_pd(tv, _mm_mul_pd(mul, _mm_load_pd(&d[l])));
         }
       }
@@ -1337,10 +1325,9 @@ evaluateGTRGAMMAPROT_GAPPED_SAVE(int* wptr, double* x1, double* x2,
   return sum;
 }
 
-static double
-evaluateGTRGAMMAPROT(int* wptr, double* x1, double* x2, double* tipVector,
-                     unsigned char* tipX1, int n, double* diagptable)
-{
+static double evaluateGTRGAMMAPROT(int *wptr, double *x1, double *x2,
+                                   double *tipVector, unsigned char *tipX1,
+                                   int n, double *diagptable) {
   double sum = 0.0, term;
   int i, j, l;
   double *left, *right;
@@ -1351,11 +1338,11 @@ evaluateGTRGAMMAPROT(int* wptr, double* x1, double* x2, double* tipVector,
       left = &(tipVector[20 * tipX1[i]]);
 
       for (j = 0, term = 0.0; j < 4; j++) {
-        double* d = &diagptable[j * 20];
+        double *d = &diagptable[j * 20];
         right = &(x2[80 * i + 20 * j]);
         for (l = 0; l < 20; l += 2) {
           __m128d mul =
-            _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
+              _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
           tv = _mm_add_pd(tv, _mm_mul_pd(mul, _mm_load_pd(&d[l])));
         }
       }
@@ -1371,13 +1358,13 @@ evaluateGTRGAMMAPROT(int* wptr, double* x1, double* x2, double* tipVector,
       __m128d tv = _mm_setzero_pd();
 
       for (j = 0, term = 0.0; j < 4; j++) {
-        double* d = &diagptable[j * 20];
+        double *d = &diagptable[j * 20];
         left = &(x1[80 * i + 20 * j]);
         right = &(x2[80 * i + 20 * j]);
 
         for (l = 0; l < 20; l += 2) {
           __m128d mul =
-            _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
+              _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
           tv = _mm_add_pd(tv, _mm_mul_pd(mul, _mm_load_pd(&d[l])));
         }
       }
@@ -1393,11 +1380,9 @@ evaluateGTRGAMMAPROT(int* wptr, double* x1, double* x2, double* tipVector,
   return sum;
 }
 
-static double
-evaluateGTRCATPROT(int* cptr, int* wptr, double* x1, double* x2,
-                   double* tipVector, unsigned char* tipX1, int n,
-                   double* diagptable_start)
-{
+static double evaluateGTRCATPROT(int *cptr, int *wptr, double *x1, double *x2,
+                                 double *tipVector, unsigned char *tipX1, int n,
+                                 double *diagptable_start) {
   double sum = 0.0, term;
   double *diagptable, *left, *right;
   int i, l;
@@ -1457,13 +1442,10 @@ evaluateGTRCATPROT(int* cptr, int* wptr, double* x1, double* x2,
   return sum;
 }
 
-static double
-evaluateGTRCATPROT_SAVE(int* cptr, int* wptr, double* x1, double* x2,
-                        double* tipVector, unsigned char* tipX1, int n,
-                        double* diagptable_start, double* x1_gapColumn,
-                        double* x2_gapColumn, unsigned int* x1_gap,
-                        unsigned int* x2_gap)
-{
+static double evaluateGTRCATPROT_SAVE(
+    int *cptr, int *wptr, double *x1, double *x2, double *tipVector,
+    unsigned char *tipX1, int n, double *diagptable_start, double *x1_gapColumn,
+    double *x2_gapColumn, unsigned int *x1_gap, unsigned int *x2_gap) {
   double sum = 0.0, term, *diagptable, *left, *right, *left_ptr = x1,
          *right_ptr = x2;
 
@@ -1541,13 +1523,12 @@ evaluateGTRCATPROT_SAVE(int* cptr, int* wptr, double* x1, double* x2,
   return sum;
 }
 
-static double
-evaluateGTRCAT_SAVE(int* cptr, int* wptr, double* x1_start, double* x2_start,
-                    double* tipVector, unsigned char* tipX1, int n,
-                    double* diagptable_start, double* x1_gapColumn,
-                    double* x2_gapColumn, unsigned int* x1_gap,
-                    unsigned int* x2_gap)
-{
+static double evaluateGTRCAT_SAVE(int *cptr, int *wptr, double *x1_start,
+                                  double *x2_start, double *tipVector,
+                                  unsigned char *tipX1, int n,
+                                  double *diagptable_start,
+                                  double *x1_gapColumn, double *x2_gapColumn,
+                                  unsigned int *x1_gap, unsigned int *x2_gap) {
   double sum = 0.0, term;
   int i;
 
@@ -1637,13 +1618,10 @@ evaluateGTRCAT_SAVE(int* cptr, int* wptr, double* x1_start, double* x2_start,
   return sum;
 }
 
-static double
-evaluateGTRGAMMA_GAPPED_SAVE(int* wptr, double* x1_start, double* x2_start,
-                             double* tipVector, unsigned char* tipX1,
-                             const int n, double* diagptable,
-                             double* x1_gapColumn, double* x2_gapColumn,
-                             unsigned int* x1_gap, unsigned int* x2_gap)
-{
+static double evaluateGTRGAMMA_GAPPED_SAVE(
+    int *wptr, double *x1_start, double *x2_start, double *tipVector,
+    unsigned char *tipX1, const int n, double *diagptable, double *x1_gapColumn,
+    double *x2_gapColumn, unsigned int *x1_gap, unsigned int *x2_gap) {
   double sum = 0.0, term;
   int i, j;
   double *x1, *x2, *x1_ptr = x1_start, *x2_ptr = x2_start;
@@ -1741,11 +1719,9 @@ evaluateGTRGAMMA_GAPPED_SAVE(int* wptr, double* x1_start, double* x2_start,
   return sum;
 }
 
-static double
-evaluateGTRGAMMA(int* wptr, double* x1_start, double* x2_start,
-                 double* tipVector, unsigned char* tipX1, const int n,
-                 double* diagptable)
-{
+static double evaluateGTRGAMMA(int *wptr, double *x1_start, double *x2_start,
+                               double *tipVector, unsigned char *tipX1,
+                               const int n, double *diagptable) {
   double sum = 0.0, term;
   int i, j;
 
@@ -1828,11 +1804,10 @@ evaluateGTRGAMMA(int* wptr, double* x1_start, double* x2_start,
   return sum;
 }
 
-static double
-evaluateGTRCAT(int* cptr, int* wptr, double* x1_start, double* x2_start,
-               double* tipVector, unsigned char* tipX1, int n,
-               double* diagptable_start)
-{
+static double evaluateGTRCAT(int *cptr, int *wptr, double *x1_start,
+                             double *x2_start, double *tipVector,
+                             unsigned char *tipX1, int n,
+                             double *diagptable_start) {
   double sum = 0.0, term;
   int i;
 
