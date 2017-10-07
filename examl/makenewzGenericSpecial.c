@@ -57,6 +57,11 @@
 #include "mic_native.h"
 #endif
 
+#ifdef __CUDA
+#include "cudaLikelihood.h"
+#endif
+
+
 /* pointers to reduction buffers for storing and gathering the first and second
    derivative
    of the likelihood in Pthreads and MPI */
@@ -99,7 +104,11 @@ getVects(tree* tr, unsigned char** tipX1, unsigned char** tipX2,
     if (!(isTip(pNumber, tr->mxtips) && isTip(qNumber, tr->mxtips))) {
       *tipCase = TIP_INNER;
       if (isTip(qNumber, tr->mxtips)) {
+  #ifdef __CUDA
+        *tipX1 = tr->partitionData[model].cudaPackage->yVector[qNumber] + offset;
+  #else 
         *tipX1 = tr->partitionData[model].yVector[qNumber] + offset;
+  #endif
         *x2_start =
           tr->partitionData[model].xVector[pNumber - tr->mxtips - 1] + x_offset;
 
@@ -112,7 +121,11 @@ getVects(tree* tr, unsigned char** tipX1, unsigned char** tipX2,
                .gapColumn[(pNumber - tr->mxtips - 1) * states * rateHet];
         }
       } else {
+#ifdef __CUDA
+        *tipX1 = tr->partitionData[model].cudaPackage->yVector[pNumber] + offset;
+#else         
         *tipX1 = tr->partitionData[model].yVector[pNumber] + offset;
+#endif
         *x2_start =
           tr->partitionData[model].xVector[qNumber - tr->mxtips - 1] + x_offset;
 
@@ -133,8 +146,13 @@ getVects(tree* tr, unsigned char** tipX1, unsigned char** tipX2,
        that optimized pair-wise distances between all taxa in a tree */
 
       *tipCase = TIP_TIP;
+#ifdef __CUDA
+      *tipX1 = tr->partitionData[model].cudaPackage->yVector[pNumber] + offset;
+      *tipX2 = tr->partitionData[model].cudaPackage->yVector[qNumber] + offset;
+#else 
       *tipX1 = tr->partitionData[model].yVector[pNumber] + offset;
       *tipX2 = tr->partitionData[model].yVector[qNumber] + offset;
+#endif
     }
   } else {
     *tipCase = INNER_INNER;
@@ -768,9 +786,16 @@ makenewzIterative(tree* tr)
                              tr->partitionData[model].mic_tipVector, tipX1,
                              tipX2, width);
 #else
+#ifdef __CUDA
+                cudaSumGAMMA(tipCase, sumBuffer, x1_start, x2_start, 
+                          tr->partitionData[model].tipVector, 
+                          tipX1, tipX2, width, 
+                          tr->partitionData[model].cudaPackage, states);
+#else
                 sumGAMMA(tipCase, sumBuffer, x1_start, x2_start,
                          tr->partitionData[model].tipVector, tipX1, tipX2,
                          width);
+#endif 
 #endif
             }
             break;

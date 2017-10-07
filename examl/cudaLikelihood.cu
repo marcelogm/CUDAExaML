@@ -43,9 +43,8 @@ __global__ static void cudaTTGammaKernel(double *v, double *extEV, double *uX1,
   }
 }
 
-__global__ static void cudaPreTIGammaKernel(double *t, double *l,
-                                               double *ump,
-                                               const int maxStateValue) {
+__global__ static void cudaPreTIGammaKernel(double *t, double *l, double *ump,
+                                            const int maxStateValue) {
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   t += (n / maxStateValue) * 4;
   l += (n % 16) * 4;
@@ -243,6 +242,51 @@ __global__ void cudaUnrolledReduce(double *input, double *output) {
   }
 }
 
+__global__ void cudaSumTTGamma(unsigned char *tipX1, unsigned char *tipX2,
+                               double *tipVector, double *sumtable, int limit) {
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n >= limit) {
+    return;
+  }
+  const int i = n / 4, j = n % 4;
+  double *left = &(tipVector[4 * tipX1[i]]);
+  double *right = &(tipVector[4 * tipX2[i]]);
+  double *sum = &sumtable[i * 16 + j * 4];
+  for (int k = 0; k < 4; k++) {
+    sum[k] = left[k] * right[k];
+  }
+}
+
+__global__ void cudaSumTIGamma(unsigned char *tipX1, double *x2,
+                               double *tipVector, double *sumtable, int limit) {
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n >= limit) {
+    return;
+  }
+  const int i = n / 4, l = n % 4;
+  double *left = &(tipVector[4 * tipX1[i]]);
+  double *right = &(x2[16 * i + l * 4]);
+  double *sum = &sumtable[i * 16 + l * 4];
+  for (int k = 0; k < 4; k++) {
+    sum[k] = left[k] * right[k];
+  }
+}
+
+__global__ void cudaSumIIGamma(double *x1, double *x2, double *sumtable,
+                               int limit) {
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n >= limit) {
+    return;
+  }
+  const int i = n / 4, l = n % 4;
+  double *left = &(x1[16 * i + l * 4]);
+  double *right = &(x2[16 * i + l * 4]);
+  double *sum = &(sumtable[i * 16 + l * 4]);
+  for (int k = 0; k < 4; k++) {
+    sum[k] = left[k] * right[k];
+  }
+}
+
 extern "C" void cudaGPFillYVector(CudaGP *dst, unsigned char *src) {
   cudaMemcpy(dst->yResource, src,
              dst->taxa * dst->length * sizeof(unsigned char),
@@ -298,6 +342,8 @@ extern "C" CudaGP *cudaGPMalloc(const int n, const int states,
   cudaMalloc(&p->yResource, taxa * n * sizeof(unsigned char));
   cudaMalloc(&p->evaluateSum, sizeof(double));
   cudaMalloc(&p->diagptable, p->leftRightSize);
+  // newz
+  cudaMalloc(&p->sumBuffer, p->xSize);
 
   cudaMalloc(&p->outputBuffer, p->gridSize * BLOCK_SIZE * sizeof(double));
   cudaMalloc(&p->dReduce, p->gridSize * sizeof(double));
@@ -431,3 +477,34 @@ extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
   *scalerIncrement = addScale;
 }
 
+extern "C" void cudaSumGAMMA(int tipCase, double *sumtable, double *x1,
+                             double *x2, double *tipVector,
+                             unsigned char *tipX1, unsigned char *tipX2, int n,
+                             CudaGP *p, const int states) {
+  switch (tipCase) {
+  case TIP_TIP:
+    cudaMemcpy(p->tipVector, tipVector, p->tipVectorSize,
+               cudaMemcpyHostToDevice);
+    cudaSumTTGamma<<<cudaBestGrid(n * 4), BLOCK_SIZE>>>(
+        tipX1, tipX2, p->tipVector, p->sumBuffer, n * 4);
+    cudaMemcpy(sumtable, p->sumBuffer, p->xSize, cudaMemcpyDeviceToHost);
+    break;
+  case TIP_INNER:
+    cudaMemcpy(p->x2, x2, p->xSize, cudaMemcpyHostToDevice);
+    cudaMemcpy(p->tipVector, tipVector, p->tipVectorSize,
+               cudaMemcpyHostToDevice);
+    cudaSumTIGamma<<<cudaBestGrid(n * 4), BLOCK_SIZE>>>(
+        tipX1, p->x2, p->tipVector, p->sumBuffer, n * 4);
+    cudaMemcpy(sumtable, p->sumBuffer, p->xSize, cudaMemcpyDeviceToHost);
+    break;
+  case INNER_INNER:
+    cudaMemcpy(p->x1, x1, p->xSize, cudaMemcpyHostToDevice);
+    cudaMemcpy(p->x2, x2, p->xSize, cudaMemcpyHostToDevice);
+    cudaSumIIGamma<<<cudaBestGrid(n * 4), BLOCK_SIZE>>>(p->x1, p->x2,
+                                                        p->sumBuffer, n * 4);
+    cudaMemcpy(sumtable, p->sumBuffer, p->xSize, cudaMemcpyDeviceToHost);
+    break;
+  default:
+    assert(0);
+  }
+}
