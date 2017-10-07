@@ -377,6 +377,7 @@ typedef struct CudaGAMMAPackage {
   double *outputBuffer;
   double *hReduce;
   double *dReduce;
+  double *sumBuffer;
 
   int *wgt;
   int *addScale;
