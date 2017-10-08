@@ -769,7 +769,7 @@ space for additional pointers */
 #ifdef __CUDA
               partitionLikelihood = cudaEvaluateGAMMA(
                   wgt, x1_start, x2_start, tr->partitionData[model].tipVector,
-                  tip, width, diagptable, states,
+                  tip, width, diagptable,
                   tr->partitionData[model].cudaPackage);
 #else
               partitionLikelihood = evaluateGTRGAMMA(

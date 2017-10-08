@@ -15,10 +15,8 @@ extern void cudaNewViewGAMMA(int tipCase, double *x1, double *x2, double *x3,
 
 extern double cudaEvaluateGAMMA(int *wptr, double *x1_start, double *x2_start,
                                 double *tipVector, unsigned char *tipX1,
-                                const int n, double *diagptable,
-                                const int states, CudaGP *p);
+                                const int n, double *diagptable, CudaGP *p);
 
 extern void cudaSumGAMMA(int tipCase, double *sumtable, double *x1, double *x2,
                          double *tipVector, unsigned char *tipX1,
-                         unsigned char *tipX2, int n, CudaGP *p,
-                         const int states);
+                         unsigned char *tipX2, int n, CudaGP *p);
