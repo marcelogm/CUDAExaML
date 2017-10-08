@@ -106,11 +106,13 @@ getVects(tree* tr, unsigned char** tipX1, unsigned char** tipX2,
       if (isTip(qNumber, tr->mxtips)) {
   #ifdef __CUDA
         *tipX1 = tr->partitionData[model].cudaPackage->yVector[qNumber] + offset;
+        *x2_start =
+          tr->partitionData[model].cudaPackage->xVector[pNumber - tr->mxtips - 1] + x_offset;
   #else 
         *tipX1 = tr->partitionData[model].yVector[qNumber] + offset;
-  #endif
         *x2_start =
           tr->partitionData[model].xVector[pNumber - tr->mxtips - 1] + x_offset;
+  #endif
 
         if (tr->saveMemory) {
           *x2_gap =
@@ -123,11 +125,11 @@ getVects(tree* tr, unsigned char** tipX1, unsigned char** tipX2,
       } else {
 #ifdef __CUDA
         *tipX1 = tr->partitionData[model].cudaPackage->yVector[pNumber] + offset;
+        *x2_start = tr->partitionData[model].cudaPackage->xVector[qNumber - tr->mxtips - 1] + x_offset;
 #else         
         *tipX1 = tr->partitionData[model].yVector[pNumber] + offset;
+        *x2_start = tr->partitionData[model].xVector[qNumber - tr->mxtips - 1] + x_offset;
 #endif
-        *x2_start =
-          tr->partitionData[model].xVector[qNumber - tr->mxtips - 1] + x_offset;
 
         if (tr->saveMemory) {
           *x2_gap =
@@ -156,12 +158,17 @@ getVects(tree* tr, unsigned char** tipX1, unsigned char** tipX2,
     }
   } else {
     *tipCase = INNER_INNER;
-
+#ifdef __CUDA
+    *x1_start =
+      tr->partitionData[model].cudaPackage->xVector[pNumber - tr->mxtips - 1] + x_offset;
+    *x2_start =
+      tr->partitionData[model].cudaPackage->xVector[qNumber - tr->mxtips - 1] + x_offset;
+#else 
     *x1_start =
       tr->partitionData[model].xVector[pNumber - tr->mxtips - 1] + x_offset;
     *x2_start =
       tr->partitionData[model].xVector[qNumber - tr->mxtips - 1] + x_offset;
-
+#endif
     if (tr->saveMemory) {
       *x1_gap =
         &(tr->partitionData[model]

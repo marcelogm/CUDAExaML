@@ -1,7 +1,6 @@
 #include "axml.h"
 
-extern void cudaGPFillXVector(CudaGP *dst, unsigned int tips,
-                              long unsigned int size);
+extern void cudaMallocXVector(double **x, unsigned int size);
 
 extern void cudaGPFillYVector(CudaGP *dst, unsigned char *src);
 

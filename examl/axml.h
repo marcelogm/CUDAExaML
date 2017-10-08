@@ -361,9 +361,6 @@ typedef  int boolean;
 #define BLOCK_SIZE 256
 
 typedef struct CudaGAMMAPackage {
-  double *x1;
-  double *x2;
-  double *x3;
   double *extEV;
   double *tipVector;
   double *left;

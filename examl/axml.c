@@ -1955,11 +1955,13 @@ initializePartitions(tree* tr)
     // tr->partitionData[model].gammaRates = (double*)malloc(sizeof(double) *
     // 4);
 
+#ifndef __CUDA
     tr->partitionData[model].xVector =
       (double**)malloc(sizeof(double*) * tr->mxtips);
 
     for (j = 0; j < (size_t)tr->mxtips; j++)
       tr->partitionData[model].xVector[j] = (double*)NULL;
+#endif
 
     tr->partitionData[model].xSpaceVector =
       (size_t*)calloc(tr->mxtips, sizeof(size_t));
@@ -2002,10 +2004,6 @@ initializePartitions(tree* tr)
       getUndetermined(tr->partitionData[model].dataType) + 1, tr->mxtips);
     cudaGPFillYVector(tr->partitionData[model].cudaPackage,
                     tr->partitionData[model].yResource);
-    cudaGPFillXVector(tr->partitionData[model].cudaPackage, tr->mxtips,
-                    tr->partitionData[model].width *
-                        discreteRateCategories(tr->rateHetModel) *
-                        tr->partitionData[model].states * sizeof(double));
 #endif
 
     /* tr->partitionData[model].wgt = (int *)malloc_aligned(width *

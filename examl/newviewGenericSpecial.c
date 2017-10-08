@@ -1094,11 +1094,15 @@ newviewIterative(tree* tr, int startIndex)
               tr->partitionData[model]
                 .xSpaceVector[(tInfo->pNumber - tr->mxtips - 1)],
                  requiredLength = 0;
-
-          x3_start =
-            tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1] +
-            x_offset;
-
+#ifdef __CUDA
+            x3_start =
+              tr->partitionData[model].cudaPackage->xVector[tInfo->pNumber - tr->mxtips - 1] +
+              x_offset;
+#else
+            x3_start =
+              tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1] +
+              x_offset;
+#endif
           /* memory saving stuff, not important right now, but if you are
            * interested ask Fernando */
           if (tr->saveMemory) {
@@ -1140,8 +1144,13 @@ newviewIterative(tree* tr, int startIndex)
                    availableLength will be zero at the very first time we
    traverse the tree.
                    Hence we need to allocate something here */
+
 #ifndef _USE_OMP
           if (requiredLength != availableLength) {
+#ifdef __CUDA
+            cudaMallocXVector(&x3_start, requiredLength);
+            tr->partitionData[model].cudaPackage->xVector[tInfo->pNumber - tr->mxtips - 1] = x3_start;
+#else
             /* if there is a vector of incorrect length assigned here i.e., x3
            != NULL we must free
            it first */
@@ -1152,28 +1161,28 @@ newviewIterative(tree* tr, int startIndex)
            malloc, because we need the vectors
            to be aligned at 16 BYTE (SSE3) or 32 BYTE (AVX) boundaries! */
 
-            x3_start = (double*)malloc_aligned(requiredLength);
+            x3_start = (double*)malloc_aligned(requiredLength); 
 
             /* update the data structures for consistent bookkeeping */
             tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1] =
               x3_start;
+#endif
             tr->partitionData[model]
               .xSpaceVector[(tInfo->pNumber - tr->mxtips - 1)] = requiredLength;
           }
 #endif
-
           /* now just set the pointers for data accesses in the newview()
          implementations above to the corresponding values
          according to the tip case */
 
           switch (tInfo->tipCase) {
             case TIP_TIP:
-#ifndef __CUDA            
-              tipX1 = tr->partitionData[model].yVector[tInfo->qNumber] + offset;
-              tipX2 = tr->partitionData[model].yVector[tInfo->rNumber] + offset;
-#else
+#ifdef __CUDA            
               tipX1 = tr->partitionData[model].cudaPackage->yVector[tInfo->qNumber] + offset;
               tipX2 = tr->partitionData[model].cudaPackage->yVector[tInfo->rNumber] + offset;
+#else
+              tipX1 = tr->partitionData[model].yVector[tInfo->qNumber] + offset;
+              tipX2 = tr->partitionData[model].yVector[tInfo->rNumber] + offset;
 #endif
               if (tr->saveMemory) {
                 x1_gapColumn = &(tr->partitionData[model].tipVector[gapOffset]);
@@ -1186,14 +1195,14 @@ newviewIterative(tree* tr, int startIndex)
               break;
             case TIP_INNER:
 
-#ifndef __CUDA
-              tipX1 = tr->partitionData[model].yVector[tInfo->qNumber] + offset;
-#else
+#ifdef __CUDA
               tipX1 = tr->partitionData[model].cudaPackage->yVector[tInfo->qNumber] + offset;
+              x2_start = tr->partitionData[model].cudaPackage->xVector[tInfo->rNumber - tr->mxtips - 1] + x_offset;
+#else
+              tipX1 = tr->partitionData[model].yVector[tInfo->qNumber] + offset;
+              x2_start = tr->partitionData[model].xVector[tInfo->rNumber - tr->mxtips - 1] + x_offset;
 #endif
-              x2_start = tr->partitionData[model]
-                           .xVector[tInfo->rNumber - tr->mxtips - 1] +
-                         x_offset;
+
 
               if (tr->saveMemory) {
                 x1_gapColumn = &(tr->partitionData[model].tipVector[gapOffset]);
@@ -1207,12 +1216,21 @@ newviewIterative(tree* tr, int startIndex)
 
               break;
             case INNER_INNER:
+#ifdef __CUDA
+              x1_start = tr->partitionData[model].cudaPackage->
+                          xVector[tInfo->qNumber - tr->mxtips - 1] +
+                          x_offset;
+              x2_start = tr->partitionData[model].cudaPackage->
+                          xVector[tInfo->rNumber - tr->mxtips - 1] +
+                          x_offset;
+#else
               x1_start = tr->partitionData[model]
                            .xVector[tInfo->qNumber - tr->mxtips - 1] +
                          x_offset;
               x2_start = tr->partitionData[model]
                            .xVector[tInfo->rNumber - tr->mxtips - 1] +
                          x_offset;
+#endif
 
               if (tr->saveMemory) {
                 x1_gapColumn = &tr->partitionData[model]

@@ -587,21 +587,25 @@ void evaluateIterative(tree *tr) {
           /* q is a tip */
 
           if (isTip(qNumber, tr->mxtips)) {
-            /* get the start address of the inner likelihood vector x2 for
-         partition model,
-         note that inner nodes are enumerated/indexed starting at 0 to save
-         allocating some
-         space for additional pointers */
+/* get the start address of the inner likelihood vector x2 for
+partition model,
+note that inner nodes are enumerated/indexed starting at 0 to save
+allocating some
+space for additional pointers */
 
+#ifdef __CUDA
+            x2_start = tr->partitionData[model]
+                           .cudaPackage->xVector[pNumber - tr->mxtips - 1] +
+                       x_offset;
+
+            tip =
+                tr->partitionData[model].cudaPackage->yVector[pNumber] + offset;
+#else
             x2_start =
                 tr->partitionData[model].xVector[pNumber - tr->mxtips - 1] +
                 x_offset;
 
-/* get the corresponding tip vector */
-#ifdef __CUDA
-            tip =
-                tr->partitionData[model].cudaPackage->yVector[pNumber] + offset;
-#else
+            /* get the corresponding tip vector */
             tip = tr->partitionData[model].yVector[qNumber] + offset;
 #endif
             /* memory saving stuff, let's deal with this later or ask Fernando
@@ -617,15 +621,18 @@ void evaluateIterative(tree *tr) {
                                               states * rateHet]);
             }
           } else {
-            /* p is a tip, same as above */
 
-            x2_start =
-                tr->partitionData[model].xVector[qNumber - tr->mxtips - 1] +
-                x_offset;
 #ifdef __CUDA
+            x2_start = tr->partitionData[model]
+                           .cudaPackage->xVector[qNumber - tr->mxtips - 1] +
+                       x_offset;
             tip =
                 tr->partitionData[model].cudaPackage->yVector[pNumber] + offset;
 #else
+            /* p is a tip, same as above */
+            x2_start =
+                tr->partitionData[model].xVector[qNumber - tr->mxtips - 1] +
+                x_offset;
             tip = tr->partitionData[model].yVector[pNumber] + offset;
 #endif
             if (tr->saveMemory) {
@@ -639,16 +646,23 @@ void evaluateIterative(tree *tr) {
             }
           }
         } else {
+#ifdef __CUDA
+          x1_start =
+              tr->partitionData[model].cudaPackage->xVector[pNumber - tr->mxtips - 1] +
+              x_offset;
+          x2_start =
+              tr->partitionData[model].cudaPackage->xVector[qNumber - tr->mxtips - 1] +
+              x_offset;
+#else
           /* neither p nor q are tips, hence we need to get the addresses of two
-           * inner vectors */
-
+          * inner vectors */
           x1_start =
               tr->partitionData[model].xVector[pNumber - tr->mxtips - 1] +
               x_offset;
           x2_start =
               tr->partitionData[model].xVector[qNumber - tr->mxtips - 1] +
               x_offset;
-
+#endif
           /* memory saving option */
 
           if (tr->saveMemory) {
