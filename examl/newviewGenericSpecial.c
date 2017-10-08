@@ -1052,8 +1052,11 @@ newviewIterative(tree* tr, int startIndex)
           int scalerIncrement = 0,
 
               /* integer wieght vector with pattern compression weights */
+#ifdef __CUDA
+            *wgt = tr->partitionData[model].cudaPackage->wgt + offset,
+#else
             *wgt = tr->partitionData[model].wgt + offset,
-
+#endif
               /* integer rate category vector (for each pattern, _number_ of PSR
                  category assigned to it, NOT actual rate!) */
               *rateCategory = tr->partitionData[model].rateCategory + offset;
@@ -1358,7 +1361,7 @@ newviewIterative(tree* tr, int startIndex)
                 else
 #ifdef __CUDA
                   cudaNewViewGAMMA(tInfo->tipCase, x1_start, x2_start, x3_start,
-                    tr->partitionData[model].EV, tr->partitionData[model].tipVector,
+                    tr->partitionData[model].EV, 
                     tipX1, tipX2, width, left, right, wgt, &scalerIncrement, tr->partitionData[model].cudaPackage);
 #elif __MIC_NATIVE
                   newviewGTRGAMMA_MIC(tInfo->tipCase, x1_start, x2_start,

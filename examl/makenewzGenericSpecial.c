@@ -794,8 +794,7 @@ makenewzIterative(tree* tr)
                              tipX2, width);
 #else
 #ifdef __CUDA
-                cudaSumGAMMA(tipCase, sumBuffer, x1_start, x2_start, 
-                          tr->partitionData[model].tipVector, 
+                cudaSumGAMMA(tipCase, sumBuffer, x1_start, x2_start,
                           tipX1, tipX2, width, 
                           tr->partitionData[model].cudaPackage);
 #else
