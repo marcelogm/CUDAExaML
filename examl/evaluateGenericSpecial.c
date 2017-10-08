@@ -561,8 +561,11 @@ void evaluateIterative(tree *tr) {
 
         int
             /* integer weight vector with pattern compression weights */
+#ifdef __CUDA
+            *wgt = tr->partitionData[model].cudaPackage->wgt + offset,
+#else
             *wgt = tr->partitionData[model].wgt + offset,
-
+#endif
             /* integer rate category vector (for each pattern, _number_ of PSR
                category assigned to it, NOT actual rate!) */
             *rateCategory = tr->partitionData[model].rateCategory + offset;
@@ -768,7 +771,7 @@ space for additional pointers */
 #else
 #ifdef __CUDA
               partitionLikelihood = cudaEvaluateGAMMA(
-                  wgt, x1_start, x2_start, tr->partitionData[model].tipVector,
+                  wgt, x1_start, x2_start,
                   tip, width, diagptable,
                   tr->partitionData[model].cudaPackage);
 #else
