@@ -1361,8 +1361,8 @@ newviewIterative(tree* tr, int startIndex)
                 else
 #ifdef __CUDA
                   cudaNewViewGAMMA(tInfo->tipCase, x1_start, x2_start, x3_start,
-                    tr->partitionData[model].EV, 
-                    tipX1, tipX2, width, left, right, wgt, &scalerIncrement, tr->partitionData[model].cudaPackage);
+                    tipX1, tipX2, width, left, right, wgt, 
+                    &scalerIncrement, tr->partitionData[model].cudaPackage);
 #elif __MIC_NATIVE
                   newviewGTRGAMMA_MIC(tInfo->tipCase, x1_start, x2_start,
                                       x3_start, tr->partitionData[model].mic_EV,

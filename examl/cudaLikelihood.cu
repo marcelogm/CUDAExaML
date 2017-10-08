@@ -314,10 +314,9 @@ extern "C" CudaGP *cudaGPMalloc(const int n, const int states,
   MAX_STATE_VALUE = maxStateValue;
   CudaGP *p = (CudaGP *)malloc(sizeof(CudaGP));
   p->sumBufferSize = sizeof(double) * n * 4 * states;
-  p->extEVSize = sizeof(double) * statesSquare;
   p->leftRightSize = sizeof(double) * statesSquare * 4;
   cudaMalloc(&p->addScale, sizeof(int));
-  cudaMalloc(&p->extEV, p->extEVSize);
+  cudaMalloc(&p->extEV, sizeof(double) * statesSquare);
   cudaMalloc(&p->tipVector, sizeof(double) * span * states);
   cudaMalloc(&p->left, p->leftRightSize);
   cudaMalloc(&p->right, p->leftRightSize);
@@ -346,6 +345,10 @@ extern "C" void cudaMallocXVector(double **x, unsigned int size) {
     cudaFree(*x);
   }
   cudaMalloc(x, size);
+}
+
+extern "C" void cudaGPFillEV(CudaGP *dst, double *origin, unsigned int size) {
+  cudaMemcpy(dst->extEV, origin, size * sizeof(double), cudaMemcpyHostToDevice);
 }
 
 extern "C" void cudaGPFillTipVector(CudaGP *dst, double *origin,
@@ -394,12 +397,11 @@ extern "C" double cudaEvaluateGAMMA(int *wptr, double *x1_start,
 }
 
 extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
-                                 double *x3, double *extEV,
+                                 double *x3, 
                                  unsigned char *tipX1, unsigned char *tipX2,
                                  int n, double *left, double *right, int *wgt,
                                  int *scalerIncrement, CudaGP *p) {
   int addScale = 0;
-  cudaMemcpy(p->extEV, extEV, p->extEVSize, cudaMemcpyHostToDevice);
   cudaMemcpy(p->left, left, p->leftRightSize, cudaMemcpyHostToDevice);
   cudaMemcpy(p->right, right, p->leftRightSize, cudaMemcpyHostToDevice);
   switch (tipCase) {
