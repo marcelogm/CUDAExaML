@@ -354,8 +354,7 @@ extern "C" void cudaMallocXVector(double **x, unsigned int size) {
 extern "C" double cudaEvaluateGAMMA(int *wptr, double *x1_start,
                                     double *x2_start, double *tipVector,
                                     unsigned char *tipX1, const int n,
-                                    double *diagptable, const int states,
-                                    CudaGP *p) {
+                                    double *diagptable, CudaGP *p) {
   double sum = 0.0;
   int i;
   if (tipX1) {
@@ -440,7 +439,7 @@ extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
 extern "C" void cudaSumGAMMA(int tipCase, double *sumtable, double *x1,
                              double *x2, double *tipVector,
                              unsigned char *tipX1, unsigned char *tipX2, int n,
-                             CudaGP *p, const int states) {
+                             CudaGP *p) {
   switch (tipCase) {
   case TIP_TIP:
     cudaMemcpy(p->tipVector, tipVector, p->tipVectorSize,
