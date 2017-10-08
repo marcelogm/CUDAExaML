@@ -313,45 +313,30 @@ extern "C" CudaGP *cudaGPMalloc(const int n, const int states,
   GRID_SIZE_4N = cudaBestGrid(n * 4);
   MAX_STATE_VALUE = maxStateValue;
   CudaGP *p = (CudaGP *)malloc(sizeof(CudaGP));
-  p->xSize = sizeof(double) * n * 4 * states;
+  p->sumBufferSize = sizeof(double) * n * 4 * states;
   p->extEVSize = sizeof(double) * statesSquare;
   p->tipVectorSize = sizeof(double) * span * states;
-  p->tipXSize = sizeof(unsigned char) * n;
   p->leftRightSize = sizeof(double) * statesSquare * 4;
-  p->umpXSize = sizeof(double) * precomputeLength;
-  p->umpXLargeSize = (n * states * 4 < 256) ? sizeof(double) * precomputeLength
-                                            : sizeof(double) * n * states * 4;
   p->wgtSize = sizeof(int) * n;
-
   cudaMalloc(&p->wgt, p->wgtSize);
   cudaMalloc(&p->addScale, sizeof(int));
   cudaMalloc(&p->extEV, p->extEVSize);
   cudaMalloc(&p->tipVector, p->tipVectorSize);
   cudaMalloc(&p->left, p->leftRightSize);
   cudaMalloc(&p->right, p->leftRightSize);
-  cudaMalloc(&p->umpX1, p->umpXSize);
-  cudaMalloc(&p->umpX2, p->umpXLargeSize);
-  cudaMalloc(&p->yResource, taxa * n * sizeof(unsigned char));
-  cudaMalloc(&p->evaluateSum, sizeof(double));
+  cudaMalloc(&p->umpX1, sizeof(double) * precomputeLength);
+  cudaMalloc(&p->umpX2, (n * states * 4 < 256)
+                            ? sizeof(double) * precomputeLength
+                            : sizeof(double) * n * states * 4);
   cudaMalloc(&p->diagptable, p->leftRightSize);
-  // newz
-  cudaMalloc(&p->sumBuffer, p->xSize);
-
+  cudaMalloc(&p->sumBuffer, p->sumBufferSize);
   cudaMalloc(&p->outputBuffer, GRID_SIZE_N * BLOCK_SIZE * sizeof(double));
   cudaMalloc(&p->dReduce, GRID_SIZE_N * sizeof(double));
   p->hReduce = (double *)malloc(sizeof(double) * GRID_SIZE_N);
-
-  cudaMemset(p->wgt, 0, p->wgtSize);
-  cudaMemset(p->addScale, 0, sizeof(int));
-
+  cudaMalloc(&p->yResource, taxa * n * sizeof(unsigned char));
   p->length = n;
   p->taxa = taxa;
-  p->states = states;
-  p->statesSquare = states * states;
   p->span = states * 4;
-  p->precomputeLength = maxStateValue * span;
-  p->maxStateValue = maxStateValue;
-
   p->xVector = (double **)malloc(sizeof(double *) * taxa);
   for (int i = 0; i < taxa; i++) {
     p->xVector[i] = (double *)NULL;
@@ -364,16 +349,6 @@ extern "C" void cudaMallocXVector(double **x, unsigned int size) {
     cudaFree(*x);
   }
   cudaMalloc(x, size);
-}
-
-extern "C" void cudaGPFree(CudaGP *p) {
-  cudaFree(p->extEV);
-  cudaFree(p->tipVector);
-  cudaFree(p->left);
-  cudaFree(p->right);
-  cudaFree(p->umpX1);
-  cudaFree(p->umpX2);
-  free(p);
 }
 
 extern "C" double cudaEvaluateGAMMA(int *wptr, double *x1_start,
@@ -392,8 +367,8 @@ extern "C" double cudaEvaluateGAMMA(int *wptr, double *x1_start,
     cudaEvaluateLeftGamma<<<GRID_SIZE_N, BLOCK_SIZE>>>(
         p->wgt, x2_start, p->tipVector, tipX1, p->diagptable, p->outputBuffer,
         n);
-    cudaUnrolledReduce<BLOCK_SIZE><<<GRID_SIZE_N, BLOCK_SIZE>>>(
-        p->outputBuffer, p->dReduce);
+    cudaUnrolledReduce<BLOCK_SIZE><<<GRID_SIZE_N, BLOCK_SIZE>>>(p->outputBuffer,
+                                                                p->dReduce);
     cudaMemcpy(p->hReduce, p->dReduce, GRID_SIZE_N * sizeof(double),
                cudaMemcpyDeviceToHost);
     for (i = 0; i < GRID_SIZE_N; i++) {
@@ -405,8 +380,8 @@ extern "C" double cudaEvaluateGAMMA(int *wptr, double *x1_start,
                cudaMemcpyHostToDevice);
     cudaEvaluateRightGamma<<<GRID_SIZE_N, BLOCK_SIZE>>>(
         p->wgt, x1_start, x2_start, p->diagptable, p->outputBuffer, n);
-    cudaUnrolledReduce<BLOCK_SIZE><<<GRID_SIZE_N, BLOCK_SIZE>>>(
-        p->outputBuffer, p->dReduce);
+    cudaUnrolledReduce<BLOCK_SIZE><<<GRID_SIZE_N, BLOCK_SIZE>>>(p->outputBuffer,
+                                                                p->dReduce);
     cudaMemcpy(p->hReduce, p->dReduce, GRID_SIZE_N * sizeof(double),
                cudaMemcpyDeviceToHost);
     for (i = 0; i < GRID_SIZE_N; i++) {
@@ -430,8 +405,8 @@ extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
   case TIP_TIP: {
     cudaMemcpy(p->tipVector, tipVector, p->tipVectorSize,
                cudaMemcpyHostToDevice);
-    cudaPreTTGammaKernel<<<p->maxStateValue * 2, p->span>>>(
-        p->tipVector, p->left, p->right, p->umpX1, p->umpX2, p->maxStateValue);
+    cudaPreTTGammaKernel<<<MAX_STATE_VALUE * 2, p->span>>>(
+        p->tipVector, p->left, p->right, p->umpX1, p->umpX2, MAX_STATE_VALUE);
     cudaTTGammaKernel<<<GRID_SIZE_4N, BLOCK_SIZE>>>(
         x3, p->extEV, p->umpX1, p->umpX2, tipX1, tipX2, n * 4);
   } break;
@@ -439,20 +414,20 @@ extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
     cudaMemcpy(p->tipVector, tipVector, p->tipVectorSize,
                cudaMemcpyHostToDevice);
     cudaMemcpy(p->wgt, wgt, p->wgtSize, cudaMemcpyHostToDevice);
-    cudaPreTIGammaKernel<<<p->maxStateValue, p->span>>>(
-        p->tipVector, p->left, p->umpX1, p->maxStateValue);
+    cudaPreTIGammaKernel<<<MAX_STATE_VALUE, p->span>>>(
+        p->tipVector, p->left, p->umpX1, MAX_STATE_VALUE);
     cudaTIGammaKernel<<<GRID_SIZE_4N, BLOCK_SIZE>>>(
         x2, x3, p->extEV, tipX1, tipX2, p->right, p->umpX1, p->umpX2, n * 4);
-    cudaAScaleGammaKernel<<<GRID_SIZE_N, BLOCK_SIZE>>>(x3, p->addScale,
-                                                           p->wgt, n);
+    cudaAScaleGammaKernel<<<GRID_SIZE_N, BLOCK_SIZE>>>(x3, p->addScale, p->wgt,
+                                                       n);
     cudaMemcpy(&addScale, p->addScale, sizeof(int), cudaMemcpyDeviceToHost);
   } break;
   case INNER_INNER: {
     cudaMemcpy(p->wgt, wgt, p->wgtSize, cudaMemcpyHostToDevice);
-    cudaIIGammaKernel<<<GRID_SIZE_4N, BLOCK_SIZE>>>(
-        x1, x2, x3, p->extEV, p->left, p->right, n * 4);
-    cudaAScaleGammaKernel<<<GRID_SIZE_N, BLOCK_SIZE>>>(x3, p->addScale,
-                                                           p->wgt, n);
+    cudaIIGammaKernel<<<GRID_SIZE_4N, BLOCK_SIZE>>>(x1, x2, x3, p->extEV,
+                                                    p->left, p->right, n * 4);
+    cudaAScaleGammaKernel<<<GRID_SIZE_N, BLOCK_SIZE>>>(x3, p->addScale, p->wgt,
+                                                       n);
     cudaMemcpy(&addScale, p->addScale, sizeof(int), cudaMemcpyDeviceToHost);
   } break;
   default:
@@ -470,21 +445,23 @@ extern "C" void cudaSumGAMMA(int tipCase, double *sumtable, double *x1,
   case TIP_TIP:
     cudaMemcpy(p->tipVector, tipVector, p->tipVectorSize,
                cudaMemcpyHostToDevice);
-    cudaSumTTGamma<<<GRID_SIZE_4N, BLOCK_SIZE>>>(
-        tipX1, tipX2, p->tipVector, p->sumBuffer, n * 4);
-    cudaMemcpy(sumtable, p->sumBuffer, p->xSize, cudaMemcpyDeviceToHost);
+    cudaSumTTGamma<<<GRID_SIZE_4N, BLOCK_SIZE>>>(tipX1, tipX2, p->tipVector,
+                                                 p->sumBuffer, n * 4);
+    cudaMemcpy(sumtable, p->sumBuffer, p->sumBufferSize,
+               cudaMemcpyDeviceToHost);
     break;
   case TIP_INNER:
     cudaMemcpy(p->tipVector, tipVector, p->tipVectorSize,
                cudaMemcpyHostToDevice);
     cudaSumTIGamma<<<GRID_SIZE_4N, BLOCK_SIZE>>>(tipX1, x2, p->tipVector,
-                                                        p->sumBuffer, n * 4);
-    cudaMemcpy(sumtable, p->sumBuffer, p->xSize, cudaMemcpyDeviceToHost);
+                                                 p->sumBuffer, n * 4);
+    cudaMemcpy(sumtable, p->sumBuffer, p->sumBufferSize,
+               cudaMemcpyDeviceToHost);
     break;
   case INNER_INNER:
-    cudaSumIIGamma<<<GRID_SIZE_4N, BLOCK_SIZE>>>(x1, x2, p->sumBuffer,
-                                                        n * 4);
-    cudaMemcpy(sumtable, p->sumBuffer, p->xSize, cudaMemcpyDeviceToHost);
+    cudaSumIIGamma<<<GRID_SIZE_4N, BLOCK_SIZE>>>(x1, x2, p->sumBuffer, n * 4);
+    cudaMemcpy(sumtable, p->sumBuffer, p->sumBufferSize,
+               cudaMemcpyDeviceToHost);
     break;
   default:
     assert(0);
