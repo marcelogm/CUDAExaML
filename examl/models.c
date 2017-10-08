@@ -53,6 +53,11 @@
 #include "mic_native.h"
 #endif
 
+
+#ifdef __CUDA
+#include "cudaLikelihood.h"
+#endif
+
 extern int optimizeRatesInvocations;
 extern int optimizeRateCategoryInvocations;
 extern int optimizeAlphaInvocations;
@@ -5017,14 +5022,20 @@ makeEigen(double** _a, const int n, double* d, double* e)
   mytqli(d, e, n, _a);
 }
 
+#ifdef __CUDA
+static void
+initGeneric(const int n, const unsigned int* valueVector, int valueVectorLength,
+            double* ext_EIGN, double* EV, double* EI, double* frequencies,
+            double* ext_initialRates, double* tipVector, int model, CudaGP* package)
+#else
 static void
 initGeneric(const int n, const unsigned int* valueVector, int valueVectorLength,
             double* ext_EIGN, double* EV, double* EI, double* frequencies,
             double* ext_initialRates, double* tipVector, int model)
+#endif
 {
   double fracchange = 0.0, **r, **a, **EIGV, *initialRates = ext_initialRates,
          *f, *e, *d, *invfreq, *EIGN, *eptr;
-
   int i, j, k, m, l;
 
   r = (double**)malloc(n * sizeof(double*));
@@ -5192,6 +5203,10 @@ initGeneric(const int n, const unsigned int* valueVector, int valueVectorLength,
   free(d);
   free(invfreq);
   free(EIGN);
+
+  #ifdef __CUDA
+  cudaGPFillTipVector(package, tipVector, valueVectorLength * n);
+  #endif
 }
 
 void
@@ -5213,10 +5228,17 @@ initReversibleGTR(tree* tr, int model)
     case SECONDARY_DATA:
     case DNA_DATA:
     case BINARY_DATA:
+#ifdef __CUDA
+      initGeneric(states, getBitVector(tr->partitionData[model].dataType),
+                  getUndetermined(tr->partitionData[model].dataType) + 1,
+                  ext_EIGN, EV, EI, frequencies, ext_initialRates, tipVector,
+                  model, tr->partitionData[model].cudaPackage);
+#else
       initGeneric(states, getBitVector(tr->partitionData[model].dataType),
                   getUndetermined(tr->partitionData[model].dataType) + 1,
                   ext_EIGN, EV, EI, frequencies, ext_initialRates, tipVector,
                   model);
+#endif
       break;
     case AA_DATA:
       if (tr->partitionData[model].protModels != GTR) {
@@ -5280,7 +5302,7 @@ initReversibleGTR(tree* tr, int model)
       if (tr->partitionData[model].protModels == LG4M ||
           tr->partitionData[model].protModels == LG4X) {
         int i;
-
+#ifndef __CUDA
         for (i = 0; i < 4; i++)
           initGeneric(states, bitVectorAA, 23,
                       tr->partitionData[model].rawEIGN_LG4[i],
@@ -5289,11 +5311,19 @@ initReversibleGTR(tree* tr, int model)
                       tr->partitionData[model].frequencies_LG4[i],
                       tr->partitionData[model].substRates_LG4[i],
                       tr->partitionData[model].tipVector_LG4[i], model);
-
+#else
+          printf("CUDA not available for AA data inference.\n Remove __CUDA flag.\n");
+          errorExit(-1);
+#endif
         scaleLG4X_EIGN(tr, model);
       } else
+#ifndef __CUDA
         initGeneric(states, bitVectorAA, 23, ext_EIGN, EV, EI, frequencies,
                     ext_initialRates, tipVector, model);
+#else
+          printf("CUDA not available for AA data inference.\n Remove __CUDA flag.\n");
+          errorExit(-1);
+#endif
       break;
     default:
       assert(0);
