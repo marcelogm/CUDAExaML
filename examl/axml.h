@@ -361,48 +361,31 @@ typedef  int boolean;
 #define BLOCK_SIZE 256
 
 typedef struct CudaGAMMAPackage {
+  size_t sumBufferSize;
+  size_t extEVSize;
+  size_t tipVectorSize;
+  size_t leftRightSize;
+  size_t wgtSize;
+  int *wgt;
+  int *addScale;
   double *extEV;
   double *tipVector;
   double *left;
   double *right;
-  // Buffer desnecessario
-  // Pode ser substituido por um buffer como o *left
-  double *diagptable;
   double *umpX1;
   double *umpX2;
-  
-  double *outputBuffer;
-  double *hReduce;
-  double *dReduce;
-  double *sumBuffer;
-
-  int *wgt;
-  int *addScale;
-
-  size_t taxa;
-  size_t length;
-  unsigned char **yVector;
-  unsigned char *yResource;
-
+  double *diagptable;
   double **xVector;
   double *xResource;
-  double *evaluateSum;
-
-  size_t gridSize;
-  size_t states;
-  size_t statesSquare;
+  double *sumBuffer;
+  double *outputBuffer;
+  double *dReduce;
+  double *hReduce;
+  unsigned char **yVector;
+  unsigned char *yResource;
+  size_t taxa;
+  size_t length;
   size_t span;
-  size_t precomputeLength;
-  size_t maxStateValue;
-
-  size_t xSize;
-  size_t extEVSize;
-  size_t tipVectorSize;
-  size_t tipXSize;
-  size_t leftRightSize;
-  size_t umpXSize;
-  size_t umpXLargeSize;
-  size_t wgtSize;
 } CudaGP;
 
 #endif
