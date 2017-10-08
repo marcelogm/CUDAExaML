@@ -2,11 +2,11 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "(gdb) Launch",
+            "name": "(gdb) ExaML(examl-new) in Test/bin",
             "type": "cppdbg",
             "request": "launch",
-            "program": "enter program name, for example ${workspaceRoot}/a.out",
-            "args": [],
+            "program": "/home/marcelo/Github/Test/bin/examl-new",
+            "args": ["-t ../10_10000.tree -m GAMMA -s ../10_10000.unpartitioned.binary -n T"],
             "stopAtEntry": false,
             "cwd": "${workspaceRoot}",
             "environment": [],
