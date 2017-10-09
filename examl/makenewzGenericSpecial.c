@@ -1048,9 +1048,15 @@ execCore(tree* tr, volatile double* _dlnLdlz, volatile double* _d2lnLdlz2)
                                tr->partitionData[model].EIGN,
                                tr->partitionData[model].gammaRates, lz, wgt);
 #else
+#ifdef __CUDA
+              cudaCoreGAMMA(width, &dlnLdlz, &d2lnLdlz2,
+                tr->partitionData[model].EIGN,
+                tr->partitionData[model].gammaRates, lz, tr->partitionData[model].cudaPackage);
+#else
               coreGTRGAMMA(width, sumBuffer, &dlnLdlz, &d2lnLdlz2,
                            tr->partitionData[model].EIGN,
                            tr->partitionData[model].gammaRates, lz, wgt);
+#endif
 #endif
 
             break;
