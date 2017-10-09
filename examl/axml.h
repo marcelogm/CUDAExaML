@@ -358,7 +358,15 @@ typedef  int boolean;
 
 #ifdef __CUDA
 
+#ifdef __CUDA_128_BLOCK
+#define BLOCK_SIZE 128
+#elif __CUDA_256_BLOCK
+#define BLOCK_SIZE 256
+#elif __CUDA_512_BLOCK
+#define BLOCK_SIZE 512
+#else
 #define BLOCK_SIZE 64
+#endif 
 
 typedef struct CudaGAMMAPackage {
   size_t sumBufferSize;
