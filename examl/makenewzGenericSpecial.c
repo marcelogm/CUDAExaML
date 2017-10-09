@@ -588,7 +588,7 @@ coreGAMMA_FLEX(int upper, double* sumtable, volatile double* ext_dlnLdlz,
   }
 
   /* loop over sites in this partition */
-
+  // CONSIDERAR USAR CUDA
   for (i = 0; i < upper; i++) {
     double r = rptr[cptr[i]], wr1 = r * wgt[i], wr2 = r * r * wgt[i];
 

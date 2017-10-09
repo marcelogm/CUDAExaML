@@ -363,7 +363,7 @@ typedef  int boolean;
 typedef struct CudaGAMMAPackage {
   size_t sumBufferSize;
   size_t extEVSize;
-  size_t leftRightSize;
+  size_t pVectorSize;
   int *wgt;
   int *addScale;
   double *extEV;

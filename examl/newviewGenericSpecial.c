@@ -1151,7 +1151,7 @@ newviewIterative(tree* tr, int startIndex)
 #ifndef _USE_OMP
           if (requiredLength != availableLength) {
 #ifdef __CUDA
-            cudaMallocXVector(&x3_start, requiredLength);
+            cudaGPAllocXVector(&x3_start, requiredLength);
             tr->partitionData[model].cudaPackage->xVector[tInfo->pNumber - tr->mxtips - 1] = x3_start;
 #else
             /* if there is a vector of incorrect length assigned here i.e., x3
