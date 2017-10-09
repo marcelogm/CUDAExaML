@@ -21,3 +21,7 @@ extern double cudaEvaluateGAMMA(int *wptr, double *x1_start, double *x2_start,
 extern void cudaSumGAMMA(int tipCase, double *sumtable, double *x1, double *x2,
                          unsigned char *tipX1, unsigned char *tipX2, int n,
                          CudaGP *p);
+
+void cudaCoreGAMMA(int upper, volatile double *ext_dlnLdlz,
+                       volatile double *ext_d2lnLdlz2, double *EIGN,
+                       double *gammaRates, double lz, CudaGP *p);
