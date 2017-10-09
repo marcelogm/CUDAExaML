@@ -5205,8 +5205,7 @@ initGeneric(const int n, const unsigned int* valueVector, int valueVectorLength,
   free(EIGN);
 
   #ifdef __CUDA
-  cudaGPFillEV(package, EV, n * n);
-  cudaGPFillTipVector(package, tipVector, valueVectorLength * n);
+  cudaGPCopyModel(package, EV, n * n, tipVector, valueVectorLength * n);
   #endif
 }
 

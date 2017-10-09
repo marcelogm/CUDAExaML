@@ -1999,14 +1999,10 @@ initializePartitions(tree* tr)
 #endif
 
 #ifdef __CUDA
-    tr->partitionData[model].cudaPackage = cudaGPMalloc(
+    tr->partitionData[model].cudaPackage = cudaGPAlloc(
       tr->partitionData[model].width, tr->partitionData[model].states,
-      getUndetermined(tr->partitionData[model].dataType) + 1, tr->mxtips);
-    cudaGPFillYVector(tr->partitionData[model].cudaPackage,
-      tr->partitionData[model].yResource);
-    cudaGPFillWgt(tr->partitionData[model].cudaPackage, 
-      tr->partitionData[model].wgt, 
-      tr->partitionData[model].width);
+      getUndetermined(tr->partitionData[model].dataType) + 1, tr->mxtips, 
+      tr->partitionData[model].yResource, tr->partitionData[model].wgt);
 #endif
 
     /* tr->partitionData[model].wgt = (int *)malloc_aligned(width *
