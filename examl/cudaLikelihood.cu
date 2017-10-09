@@ -1,6 +1,8 @@
 #include "axml.h"
 #include <math.h>
+#include <stdbool.h>
 
+#define MULTI_REDUCE true
 static unsigned int GRID_SIZE_N;
 static unsigned int GRID_SIZE_4N;
 static unsigned int MAX_STATE_VALUE;
@@ -197,11 +199,16 @@ __global__ static void cudaEvaluateRightGamma(int *wptr, double *x1, double *x2,
 
 // Completely unrolled reduction with volatile shared memory
 template <unsigned int blockSize>
-__global__ static void cudaUnrolledReduce(double *input, double *output) {
+__global__ static void cudaUnrolledReduce(double *input, double *output,
+                                          unsigned int limit) {
   __shared__ volatile double sdata[BLOCK_SIZE];
   const unsigned int tid = threadIdx.x;
   const unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-  sdata[tid] = input[i];
+  if (i >= limit) {
+    sdata[tid] = 0.0;
+  } else {
+    sdata[tid] = input[i];
+  }
   __syncthreads();
   if (blockSize >= 512) {
     if (tid < 256) {
@@ -361,30 +368,41 @@ extern "C" double cudaEvaluateGAMMA(int *wptr, double *x1_start,
                                     const int n, double *diagptable,
                                     CudaGP *p) {
   double sum = 0.0;
-  int i;
-  cudaMemcpy(p->diagptable, diagptable, p->pVectorSize,
-             cudaMemcpyHostToDevice);
+  cudaMemcpy(p->diagptable, diagptable, p->pVectorSize, cudaMemcpyHostToDevice);
   if (tipX1) {
     cudaEvaluateLeftGamma<<<GRID_SIZE_N, BLOCK_SIZE>>>(
         wptr, x2_start, p->tipVector, tipX1, p->diagptable, p->outputBuffer, n);
-    cudaUnrolledReduce<BLOCK_SIZE><<<GRID_SIZE_N, BLOCK_SIZE>>>(p->outputBuffer,
-                                                                p->dReduce);
-    cudaMemcpy(p->hReduce, p->dReduce, GRID_SIZE_N * sizeof(double),
-               cudaMemcpyDeviceToHost);
-    for (i = 0; i < GRID_SIZE_N; i++) {
-      sum += p->hReduce[i];
-    }
   } else {
     cudaEvaluateRightGamma<<<GRID_SIZE_N, BLOCK_SIZE>>>(
         wptr, x1_start, x2_start, p->diagptable, p->outputBuffer, n);
-    cudaUnrolledReduce<BLOCK_SIZE><<<GRID_SIZE_N, BLOCK_SIZE>>>(p->outputBuffer,
-                                                                p->dReduce);
-    cudaMemcpy(p->hReduce, p->dReduce, GRID_SIZE_N * sizeof(double),
-               cudaMemcpyDeviceToHost);
-    for (i = 0; i < GRID_SIZE_N; i++) {
-      sum += p->hReduce[i];
-    }
   }
+#ifdef MULTI_REDUCE
+  bool flag = TRUE;
+  unsigned int toReduce = n;
+  do {
+    unsigned int grid = cudaBestGrid(toReduce);
+    if (flag) {
+      cudaUnrolledReduce<BLOCK_SIZE><<<grid, BLOCK_SIZE>>>(
+          p->outputBuffer, p->dReduce, toReduce);
+      flag = FALSE;
+    } else {
+      cudaUnrolledReduce<BLOCK_SIZE><<<grid, BLOCK_SIZE>>>(
+          p->dReduce, p->outputBuffer, toReduce);
+      flag = TRUE;
+    }
+    toReduce = grid;
+  } while (toReduce > 1);
+  cudaMemcpy(&sum, (flag) ? p->outputBuffer : p->dReduce, sizeof(double),
+             cudaMemcpyDeviceToHost);
+#else
+  cudaUnrolledReduce<BLOCK_SIZE><<<GRID_SIZE_N, BLOCK_SIZE>>>(p->outputBuffer,
+                                                              p->dReduce, n);
+  cudaMemcpy(p->hReduce, p->dReduce, GRID_SIZE_N * sizeof(double),
+             cudaMemcpyDeviceToHost);
+  for (int i = 0; i < GRID_SIZE_N; i++) {
+    sum += p->hReduce[i];
+  }
+#endif
   return sum;
 }
 
