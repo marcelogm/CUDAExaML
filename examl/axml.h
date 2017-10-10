@@ -358,7 +358,13 @@ typedef  int boolean;
 
 #ifdef __CUDA
 
-#ifdef __CUDA_128_BLOCK
+#ifdef __CUDA_16_BLOCK
+#define BLOCK_SIZE 16
+#elif __CUDA_32_BLOCK
+#define BLOCK_SIZE 32
+#elif __CUDA_64_BLOCK
+#define BLOCK_SIZE 64
+#elif __CUDA_128_BLOCK
 #define BLOCK_SIZE 128
 #elif __CUDA_256_BLOCK
 #define BLOCK_SIZE 256
@@ -370,7 +376,6 @@ typedef  int boolean;
 
 typedef struct CudaGAMMAPackage {
   size_t sumBufferSize;
-  size_t extEVSize;
   size_t pVectorSize;
   int *wgt;
   int *addScale;

@@ -406,7 +406,8 @@ extern "C" double cudaEvaluateGAMMA(int *wptr, double *x1_start,
   cudaMemcpy(p->diagptable, diagptable, p->pVectorSize, cudaMemcpyHostToDevice);
   if (tipX1) {
     cudaEvaluateLeftGammaKernel<<<GRID_SIZE_N, BLOCK_SIZE>>>(
-        wptr, x2_start, p->tipVector, tipX1, p->diagptable, p->reduceBufferB, n);
+        wptr, x2_start, p->tipVector, tipX1, p->diagptable, p->reduceBufferB,
+        n);
   } else {
     cudaEvaluateRightGammaKernel<<<GRID_SIZE_N, BLOCK_SIZE>>>(
         wptr, x1_start, x2_start, p->diagptable, p->reduceBufferB, n);
@@ -500,10 +501,9 @@ extern "C" void cudaSumGAMMA(int tipCase, double *sumtable, double *x1,
   }
 }
 
-
 extern "C" void cudaCoreGAMMA(int upper, volatile double *ext_dlnLdlz,
-                                  volatile double *ext_d2lnLdlz2, double *EIGN,
-                                  double *gammaRates, double lz, CudaGP *p) {
+                              volatile double *ext_d2lnLdlz2, double *EIGN,
+                              double *gammaRates, double lz, CudaGP *p) {
   double diagptable[1024], ki, kisqr;
   int i, l;
 
