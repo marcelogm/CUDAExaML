@@ -384,9 +384,9 @@ typedef struct CudaGAMMAPackage {
   double **xVector;
   double *xResource;
   double *sumBuffer;
-  double *outputBuffer;
-  double *dReduce;
-  double *hReduce;
+  double *reduceBufferB;
+  double *reduceBufferA;
+  double *hReduceBuffer;
   double *dlnLdlzBuffer;
   double *d2lnLdlz2Buffer;
   unsigned char **yVector;
