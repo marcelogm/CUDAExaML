@@ -25,7 +25,7 @@ examl-CUDA : $(objs)
 	$(CC) -o examl-CUDA $(objs) $(LIBRARIES) 
 
 cudaLikelihood.o : cudaLikelihood.cu $(GLOBAL_DEPS)
-	$(NV) -o cudaLikelihood.o cudaLikelihood.cu -D__CUDA -Xcompiler -fPIC -shared -arch=sm_35 -lcudart -lcublas -c -I. -lcuda -arch=sm_53
+	$(NV) -o cudaLikelihood.o cudaLikelihood.cu -D__CUDA -Xcompiler -fPIC -shared -lcudart -lcublas -c -I. -lcuda -arch=sm_53
 
 avxLikelihood.o : avxLikelihood.c $(GLOBAL_DEPS)
 	$(CC) $(CFLAGS) -mavx -c -o avxLikelihood.o avxLikelihood.c
