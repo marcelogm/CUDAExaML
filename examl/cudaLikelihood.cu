@@ -2,14 +2,221 @@
 #include <math.h>
 #include <stdbool.h>
 
-#define MULTI_REDUCE true
 static unsigned int GRID_SIZE_N;
-static unsigned int GRID_SIZE_4N;
 static unsigned int MAX_STATE_VALUE;
 
 static inline int cudaBestGrid(int n) {
   return (n / BLOCK_SIZE) + ((n % BLOCK_SIZE == 0) ? 0 : 1);
 }
+
+#ifdef __DIM_BLOCK
+
+__global__ static void cudaEvaluateLeftDBGammaKernel(int *wptr, double *x2,
+                                                     double *tipVector,
+                                                     unsigned char *tipX1,
+                                                     double *diagptable,
+                                                     double *output) {
+  __shared__ double term[16];
+  const int tid = threadIdx.y * 4 + threadIdx.x;
+  term[tid] = tipVector[4 * tipX1[blockIdx.x] + threadIdx.x] *
+              x2[16 * blockIdx.x + tid] * diagptable[tid];
+  __syncthreads();
+  if (threadIdx.y <= 1) {
+    term[tid] += term[tid + 8];
+  }
+  if (threadIdx.y == 0) {
+    term[tid] += term[tid + 4];
+    if (threadIdx.x <= 1) {
+      term[tid] += term[tid + 2];
+    }
+    if (threadIdx.x == 0) {
+      term[tid] += term[tid + 1];
+    }
+  }
+  __syncthreads();
+  if (tid == 0) {
+    term[tid] = LOG(0.25 * FABS(term[tid]));
+    output[blockIdx.x] = wptr[blockIdx.x] * term[tid];
+  }
+}
+
+__global__ static void cudaEvaluateRightDBGammaKernel(int *wptr, double *x1,
+                                                      double *x2,
+                                                      double *diagptable,
+                                                      double *output) {
+  __shared__ double term[16];
+  const int tid = threadIdx.y * 4 + threadIdx.x;
+  term[tid] =
+      x1[16 * blockIdx.x + tid] * x2[16 * blockIdx.x + tid] * diagptable[tid];
+  __syncthreads();
+  if (threadIdx.y <= 1) {
+    term[tid] += term[tid + 8];
+  }
+  if (threadIdx.y == 0) {
+    term[tid] += term[tid + 4];
+    if (threadIdx.x <= 1) {
+      term[tid] += term[tid + 2];
+    }
+    if (threadIdx.x == 0) {
+      term[tid] += term[tid + 1];
+    }
+  }
+  __syncthreads();
+  if (tid == 0) {
+    term[tid] = LOG(0.25 * FABS(term[tid]));
+    output[blockIdx.x] = wptr[blockIdx.x] * term[tid];
+  }
+}
+
+__global__ static void cudaSumIIGammaDBKernel(double *x1, double *x2,
+                                              double *sumtable) {
+  const int offset = blockIdx.x * 16 + threadIdx.y * 4 + threadIdx.x;
+  sumtable[offset] = x1[offset] * x2[offset];
+}
+
+__global__ static void cudaSumTIGammaDBKernel(unsigned char *tipX1, double *x2,
+                                              double *tipVector,
+                                              double *sumtable) {
+  const int offset = blockIdx.x * 16 + threadIdx.y * 4 + threadIdx.x;
+  sumtable[offset] =
+      tipVector[4 * tipX1[blockIdx.x] + threadIdx.x] * x2[offset];
+}
+
+__global__ static void cudaSumTTGammaDBKernel(unsigned char *tipX1,
+                                              unsigned char *tipX2,
+                                              double *tipVector,
+                                              double *sumtable) {
+  sumtable[blockIdx.x * 16 + threadIdx.y * 4 + threadIdx.x] =
+      tipVector[4 * tipX1[blockIdx.x] + threadIdx.x] *
+      tipVector[4 * tipX2[blockIdx.x] + threadIdx.x];
+}
+
+__global__ static void cudaTTGammaDBKernel(double *x3, double *extEV,
+                                           double *uX1, double *uX2,
+                                           unsigned char *tipX1,
+                                           unsigned char *tipX2) {
+  __shared__ double x1px2[16], v[64];
+  const int tid = threadIdx.z * 16 + threadIdx.y * 4 + threadIdx.x;
+  const int squareId = threadIdx.z * 4 + threadIdx.y;
+  if (threadIdx.x == 0) {
+    x1px2[squareId] = uX1[16 * tipX1[blockIdx.x] + squareId] *
+                      uX2[16 * tipX2[blockIdx.x] + squareId];
+  }
+  __syncthreads();
+  v[tid] = x1px2[squareId] * extEV[4 * threadIdx.y + threadIdx.x];
+  __syncthreads();
+  if (threadIdx.y <= 1) {
+    v[tid] += v[tid + 8];
+  }
+  if (threadIdx.y == 0) {
+    v[tid] += v[tid + 4];
+    x3[blockIdx.x * 16 + threadIdx.z * 4 + threadIdx.x] = v[tid];
+  }
+}
+
+__global__ static void cudaPreTTGammaDBKernel(double *v, double *l, double *r,
+                                              double *umpX1, double *umpX2) {
+  __shared__ double ump[64];
+  const int tid = threadIdx.y * 4 + threadIdx.x;
+  if (blockIdx.y == 0) {
+    ump[tid] = v[4 * blockIdx.x + threadIdx.x] * l[tid];
+    if (threadIdx.x <= 1) {
+      ump[tid] += ump[tid + 2];
+    }
+    if (threadIdx.x == 0) {
+      ump[tid] += ump[tid + 1];
+      umpX1[blockIdx.x * 16 + threadIdx.y] = ump[tid];
+    }
+  } else {
+    ump[tid] = v[4 * blockIdx.x + threadIdx.x] * r[tid];
+    if (threadIdx.x <= 1) {
+      ump[tid] += ump[tid + 2];
+    }
+    if (threadIdx.x == 0) {
+      ump[tid] += ump[tid + 1];
+      umpX2[blockIdx.x * 16 + threadIdx.y] = ump[tid];
+    }
+  }
+}
+
+__global__ static void cudaPreTIGammaDBKernel(double *t, double *l,
+                                              double *ump) {
+  __shared__ double sump[64];
+  const int tid = threadIdx.y * 4 + threadIdx.x;
+  sump[tid] = t[4 * blockIdx.x + threadIdx.x] * l[tid];
+  if (threadIdx.x <= 1) {
+    sump[tid] += sump[tid + 2];
+  }
+  if (threadIdx.x == 0) {
+    sump[tid] += sump[tid + 1];
+    ump[blockIdx.x * 16 + threadIdx.y] = sump[tid];
+  }
+}
+
+__global__ static void cudaTIGammaDBKernel(double *x2, double *x3,
+                                           double *extEV, unsigned char *tipX1,
+                                           unsigned char *tipX2, double *r,
+                                           double *uX1, double *uX2) {
+  __shared__ double ump[64], x1px2[16], v[64];
+  const int tid = (threadIdx.z * 16) + (threadIdx.y * 4) + threadIdx.x;
+  const int offset = 16 * blockIdx.x + threadIdx.z * 4;
+  const int squareId = threadIdx.z * 4 + threadIdx.y;
+  uX1 += 16 * tipX1[blockIdx.x];
+  ump[tid] = x2[offset + threadIdx.x] * r[tid];
+  __syncthreads();
+  if (threadIdx.x <= 1) {
+    ump[tid] += ump[tid + 2];
+  }
+  if (threadIdx.x == 0) {
+    ump[tid] += ump[tid + 1];
+    x1px2[squareId] = uX1[squareId] * ump[tid];
+  }
+  __syncthreads();
+  v[tid] = x1px2[squareId] * extEV[threadIdx.y * 4 + threadIdx.x];
+  __syncthreads();
+  if (threadIdx.y <= 1) {
+    v[tid] += v[tid + 8];
+  }
+  if (threadIdx.y == 0) {
+    v[tid] += v[tid + 4];
+    x3[offset + threadIdx.x] = v[tid];
+  }
+}
+
+__global__ static void cudaIIGammaDBKernel(double *x1, double *x2, double *x3,
+                                           double *extEV, double *left,
+                                           double *right) {
+  __shared__ double al[64], ar[64], v[64], x1px2[16];
+  const int tid = (threadIdx.z * 16) + (threadIdx.y * 4) + threadIdx.x;
+  const int offset = 16 * blockIdx.x + 4 * threadIdx.z;
+  al[tid] = x1[offset + threadIdx.x] * left[tid];
+  ar[tid] = x2[offset + threadIdx.x] * right[tid];
+  __syncthreads();
+  if (threadIdx.x <= 1) {
+    al[tid] += al[tid + 2];
+    ar[tid] += ar[tid + 2];
+  }
+  if (threadIdx.x == 0) {
+    al[tid] += al[tid + 1];
+    ar[tid] += ar[tid + 1];
+    x1px2[(threadIdx.z * 4) + threadIdx.y] = al[tid] * ar[tid];
+  }
+  __syncthreads();
+  v[tid] = x1px2[threadIdx.y + (threadIdx.z * 4)] *
+           extEV[threadIdx.y * 4 + threadIdx.x];
+  __syncthreads();
+  if (threadIdx.y <= 1) {
+    v[tid] += v[tid + 8];
+  }
+  if (threadIdx.y == 0) {
+    v[tid] += v[tid + 4];
+    x3[offset + threadIdx.x] = v[tid];
+  }
+}
+
+#else
+
+static unsigned int GRID_SIZE_4N;
 
 __global__ static void cudaPreTTGammaKernel(double *v, double *l, double *r,
                                             double *umpX1, double *umpX2,
@@ -131,23 +338,6 @@ __global__ static void cudaIIGammaKernel(double *x1, double *x2, double *x3,
   }
 }
 
-__global__ static void cudaAScaleGammaKernel(double *x3, int *addScale,
-                                             int *wgt, int limit) {
-  const int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i >= limit)
-    return;
-  x3 += 16 * i;
-  int l, scale = 1;
-  for (l = 0; scale && (l < 16); l++) {
-    scale = (ABS(x3[l]) < minlikelihood);
-  }
-  if (scale) {
-    for (l = 0; l < 16; l++)
-      x3[l] *= twotothe256;
-    atomicAdd(addScale, wgt[i]);
-  }
-}
-
 __global__ static void
 cudaEvaluateLeftGammaKernel(int *wptr, double *x2, double *tipVector,
                             unsigned char *tipX1, double *diagptable,
@@ -196,6 +386,104 @@ __global__ static void cudaEvaluateRightGammaKernel(int *wptr, double *x1,
   }
   term = log(0.25 * fabs(term));
   output[i] += wptr[i] * term;
+}
+
+__global__ static void cudaSumTTGammaKernel(unsigned char *tipX1,
+                                            unsigned char *tipX2,
+                                            double *tipVector, double *sumtable,
+                                            int limit) {
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n >= limit) {
+    return;
+  }
+  const int i = n / 4, j = n % 4;
+  double *left = &(tipVector[4 * tipX1[i]]);
+  double *right = &(tipVector[4 * tipX2[i]]);
+  double *sum = &sumtable[i * 16 + j * 4];
+  for (int k = 0; k < 4; k++) {
+    sum[k] = left[k] * right[k];
+  }
+}
+
+__global__ static void cudaSumTIGammaKernel(unsigned char *tipX1, double *x2,
+                                            double *tipVector, double *sumtable,
+                                            int limit) {
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n >= limit) {
+    return;
+  }
+  const int i = n / 4, l = n % 4;
+  double *left = &(tipVector[4 * tipX1[i]]);
+  double *right = &(x2[16 * i + l * 4]);
+  double *sum = &sumtable[i * 16 + l * 4];
+  for (int k = 0; k < 4; k++) {
+    sum[k] = left[k] * right[k];
+  }
+}
+
+__global__ static void cudaSumIIGammaKernel(double *x1, double *x2,
+                                            double *sumtable, int limit) {
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n >= limit) {
+    return;
+  }
+  const int i = n / 4, l = n % 4;
+  double *left = &(x1[16 * i + l * 4]);
+  double *right = &(x2[16 * i + l * 4]);
+  double *sum = &(sumtable[i * 16 + l * 4]);
+  for (int k = 0; k < 4; k++) {
+    sum[k] = left[k] * right[k];
+  }
+}
+
+#endif
+
+__global__ static void cudaCoreGammaKernel(double *sumtable, double *diagptable,
+                                           int *wgt, double *dlnLdlzBuffer,
+                                           double *d2lnLdlz2Buffer, int limit) {
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i >= limit) {
+    dlnLdlzBuffer[i] = 0.0;
+    d2lnLdlz2Buffer[i] = 0.0;
+    return;
+  }
+  double *sum = &sumtable[i * 16];
+  double inv_Li = 0.0;
+  double dlnLidlz = 0.0;
+  double d2lnLidlz2 = 0.0;
+  double tmp;
+  int j, l;
+  for (j = 0; j < 4; j++) {
+    inv_Li += sum[j * 4];
+
+    for (l = 1; l < 4; l++) {
+      inv_Li += (tmp = diagptable[j * 16 + l * 4] * sum[j * 4 + l]);
+      dlnLidlz += tmp * diagptable[j * 16 + l * 4 + 1];
+      d2lnLidlz2 += tmp * diagptable[j * 16 + l * 4 + 2];
+    }
+  }
+  inv_Li = 1.0 / FABS(inv_Li);
+  dlnLidlz *= inv_Li;
+  d2lnLidlz2 *= inv_Li;
+  dlnLdlzBuffer[i] = wgt[i] * dlnLidlz;
+  d2lnLdlz2Buffer[i] = wgt[i] * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
+}
+
+__global__ static void cudaAScaleGammaKernel(double *x3, int *addScale,
+                                             int *wgt, int limit) {
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i >= limit)
+    return;
+  x3 += 16 * i;
+  int l, scale = 1;
+  for (l = 0; scale && (l < 16); l++) {
+    scale = (ABS(x3[l]) < minlikelihood);
+  }
+  if (scale) {
+    for (l = 0; l < 16; l++)
+      x3[l] *= twotothe256;
+    atomicAdd(addScale, wgt[i]);
+  }
 }
 
 // Completely unrolled reduction with volatile shared memory
@@ -254,85 +542,6 @@ __global__ static void cudaUnrolledReduceKernel(double *input, double *output,
   }
 }
 
-__global__ static void cudaSumTTGammaKernel(unsigned char *tipX1,
-                                            unsigned char *tipX2,
-                                            double *tipVector, double *sumtable,
-                                            int limit) {
-  const int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n >= limit) {
-    return;
-  }
-  const int i = n / 4, j = n % 4;
-  double *left = &(tipVector[4 * tipX1[i]]);
-  double *right = &(tipVector[4 * tipX2[i]]);
-  double *sum = &sumtable[i * 16 + j * 4];
-  for (int k = 0; k < 4; k++) {
-    sum[k] = left[k] * right[k];
-  }
-}
-
-__global__ static void cudaSumTIGammaKernel(unsigned char *tipX1, double *x2,
-                                            double *tipVector, double *sumtable,
-                                            int limit) {
-  const int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n >= limit) {
-    return;
-  }
-  const int i = n / 4, l = n % 4;
-  double *left = &(tipVector[4 * tipX1[i]]);
-  double *right = &(x2[16 * i + l * 4]);
-  double *sum = &sumtable[i * 16 + l * 4];
-  for (int k = 0; k < 4; k++) {
-    sum[k] = left[k] * right[k];
-  }
-}
-
-__global__ static void cudaSumIIGammaKernel(double *x1, double *x2,
-                                            double *sumtable, int limit) {
-  const int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n >= limit) {
-    return;
-  }
-  const int i = n / 4, l = n % 4;
-  double *left = &(x1[16 * i + l * 4]);
-  double *right = &(x2[16 * i + l * 4]);
-  double *sum = &(sumtable[i * 16 + l * 4]);
-  for (int k = 0; k < 4; k++) {
-    sum[k] = left[k] * right[k];
-  }
-}
-
-__global__ static void cudaCoreGammaKernel(double *sumtable, double *diagptable,
-                                           int *wgt, double *dlnLdlzBuffer,
-                                           double *d2lnLdlz2Buffer, int limit) {
-  const int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i >= limit) {
-    dlnLdlzBuffer[i] = 0.0;
-    d2lnLdlz2Buffer[i] = 0.0;
-    return;
-  }
-  double *sum = &sumtable[i * 16];
-  double inv_Li = 0.0;
-  double dlnLidlz = 0.0;
-  double d2lnLidlz2 = 0.0;
-  double tmp;
-  int j, l;
-  for (j = 0; j < 4; j++) {
-    inv_Li += sum[j * 4];
-
-    for (l = 1; l < 4; l++) {
-      inv_Li += (tmp = diagptable[j * 16 + l * 4] * sum[j * 4 + l]);
-      dlnLidlz += tmp * diagptable[j * 16 + l * 4 + 1];
-      d2lnLidlz2 += tmp * diagptable[j * 16 + l * 4 + 2];
-    }
-  }
-  inv_Li = 1.0 / FABS(inv_Li);
-  dlnLidlz *= inv_Li;
-  d2lnLidlz2 *= inv_Li;
-  dlnLdlzBuffer[i] = wgt[i] * dlnLidlz;
-  d2lnLdlz2Buffer[i] = wgt[i] * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
-}
-
 extern "C" CudaGP *cudaGPAlloc(const int n, const int states,
                                const int maxStateValue, const int taxa,
                                unsigned char *yResource, int *wgt) {
@@ -340,7 +549,9 @@ extern "C" CudaGP *cudaGPAlloc(const int n, const int states,
             precomputeLength = maxStateValue * span;
   int i;
   GRID_SIZE_N = cudaBestGrid(n);
+#ifndef __DIM_BLOCK
   GRID_SIZE_4N = cudaBestGrid(n * 4);
+#endif
   MAX_STATE_VALUE = maxStateValue;
   CudaGP *p = (CudaGP *)malloc(sizeof(CudaGP));
   p->sumBufferSize = sizeof(double) * n * 4 * states;
@@ -404,6 +615,16 @@ extern "C" double cudaEvaluateGAMMA(int *wptr, double *x1_start,
                                     CudaGP *p) {
   double sum = 0.0;
   cudaMemcpy(p->diagptable, diagptable, p->pVectorSize, cudaMemcpyHostToDevice);
+#ifdef __DIM_BLOCK
+  dim3 block(4, 4, 1);
+  if (tipX1) {
+    cudaEvaluateLeftDBGammaKernel<<<n, block>>>(
+        wptr, x2_start, p->tipVector, tipX1, p->diagptable, p->reduceBufferB);
+  } else {
+    cudaEvaluateRightDBGammaKernel<<<n, block>>>(
+        wptr, x1_start, x2_start, p->diagptable, p->reduceBufferB);
+  }
+#else
   if (tipX1) {
     cudaEvaluateLeftGammaKernel<<<GRID_SIZE_N, BLOCK_SIZE>>>(
         wptr, x2_start, p->tipVector, tipX1, p->diagptable, p->reduceBufferB,
@@ -412,7 +633,8 @@ extern "C" double cudaEvaluateGAMMA(int *wptr, double *x1_start,
     cudaEvaluateRightGammaKernel<<<GRID_SIZE_N, BLOCK_SIZE>>>(
         wptr, x1_start, x2_start, p->diagptable, p->reduceBufferB, n);
   }
-#ifdef MULTI_REDUCE
+#endif
+#ifdef __MULTI_REDUCE
   bool flag = TRUE;
   unsigned int toReduce = n;
   do {
@@ -452,23 +674,48 @@ extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
   cudaMemcpy(p->right, right, p->pVectorSize, cudaMemcpyHostToDevice);
   switch (tipCase) {
   case TIP_TIP: {
+#ifdef __DIM_BLOCK
+    dim3 pregrid(MAX_STATE_VALUE, 2, 1);
+    dim3 preblock(4, 16, 1);
+    dim3 block(4, 4, 4);
+    cudaPreTTGammaDBKernel<<<pregrid, preblock>>>(p->tipVector, p->left,
+                                                  p->right, p->umpX1, p->umpX2);
+    cudaTTGammaDBKernel<<<n, block>>>(x3, p->extEV, p->umpX1, p->umpX2, tipX1,
+                                      tipX2);
+#else
     cudaPreTTGammaKernel<<<MAX_STATE_VALUE * 2, p->span>>>(
         p->tipVector, p->left, p->right, p->umpX1, p->umpX2, MAX_STATE_VALUE);
     cudaTTGammaKernel<<<GRID_SIZE_4N, BLOCK_SIZE>>>(
         x3, p->extEV, p->umpX1, p->umpX2, tipX1, tipX2, n * 4);
+#endif
   } break;
   case TIP_INNER: {
+#ifdef __DIM_BLOCK
+    dim3 preblock(4, 16, 1);
+    dim3 block(4, 4, 4);
+    cudaPreTIGammaDBKernel<<<MAX_STATE_VALUE, preblock>>>(p->tipVector, p->left,
+                                                          p->umpX1);
+    cudaTIGammaDBKernel<<<n, block>>>(x2, x3, p->extEV, tipX1, tipX2, p->right,
+                                      p->umpX1, p->umpX2);
+#else
+
     cudaPreTIGammaKernel<<<MAX_STATE_VALUE, p->span>>>(
         p->tipVector, p->left, p->umpX1, MAX_STATE_VALUE);
     cudaTIGammaKernel<<<GRID_SIZE_4N, BLOCK_SIZE>>>(
         x2, x3, p->extEV, tipX1, tipX2, p->right, p->umpX1, p->umpX2, n * 4);
+#endif
     cudaMemset(p->addScale, 0, sizeof(int));
     cudaAScaleGammaKernel<<<GRID_SIZE_N, BLOCK_SIZE>>>(x3, p->addScale, wgt, n);
     cudaMemcpy(&addScale, p->addScale, sizeof(int), cudaMemcpyDeviceToHost);
   } break;
   case INNER_INNER: {
+#ifdef __DIM_BLOCK
+    dim3 block(4, 4, 4);
+    cudaIIGammaDBKernel<<<n, block>>>(x1, x2, x3, p->extEV, p->left, p->right);
+#else
     cudaIIGammaKernel<<<GRID_SIZE_4N, BLOCK_SIZE>>>(x1, x2, x3, p->extEV,
                                                     p->left, p->right, n * 4);
+#endif
     cudaMemset(p->addScale, 0, sizeof(int));
     cudaAScaleGammaKernel<<<GRID_SIZE_N, BLOCK_SIZE>>>(x3, p->addScale, wgt, n);
     cudaMemcpy(&addScale, p->addScale, sizeof(int), cudaMemcpyDeviceToHost);
@@ -483,10 +730,29 @@ extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
 extern "C" void cudaSumGAMMA(int tipCase, double *sumtable, double *x1,
                              double *x2, unsigned char *tipX1,
                              unsigned char *tipX2, int n, CudaGP *p) {
+
+#ifdef __DIM_BLOCK
+  dim3 block(4, 4, 1);
+  switch (tipCase) {
+  case TIP_TIP:
+    cudaSumTTGammaDBKernel<<<n, block>>>(tipX1, tipX2, p->tipVector,
+                                         p->sumBuffer);
+    break;
+  case TIP_INNER:
+    cudaSumTIGammaDBKernel<<<n, block>>>(tipX1, x2, p->tipVector, p->sumBuffer);
+    break;
+  case INNER_INNER:
+    cudaSumIIGammaDBKernel<<<n, block>>>(x1, x2, p->sumBuffer);
+    break;
+  default:
+    assert(0);
+  }
+#else
   switch (tipCase) {
   case TIP_TIP:
     cudaSumTTGammaKernel<<<GRID_SIZE_4N, BLOCK_SIZE>>>(
         tipX1, tipX2, p->tipVector, p->sumBuffer, n * 4);
+
     break;
   case TIP_INNER:
     cudaSumTIGammaKernel<<<GRID_SIZE_4N, BLOCK_SIZE>>>(tipX1, x2, p->tipVector,
@@ -499,6 +765,8 @@ extern "C" void cudaSumGAMMA(int tipCase, double *sumtable, double *x1,
   default:
     assert(0);
   }
+
+#endif
 }
 
 extern "C" void cudaCoreGAMMA(int upper, volatile double *ext_dlnLdlz,
@@ -522,7 +790,7 @@ extern "C" void cudaCoreGAMMA(int upper, volatile double *ext_dlnLdlz,
   cudaCoreGammaKernel<<<GRID_SIZE_N, BLOCK_SIZE>>>(p->sumBuffer, p->diagptable,
                                                    p->wgt, p->dlnLdlzBuffer,
                                                    p->d2lnLdlz2Buffer, upper);
-#ifdef MULTI_REDUCE
+#ifdef __MULTI_REDUCE
   bool flag = TRUE;
   unsigned int toReduce = upper;
   do {
