@@ -11,14 +11,22 @@ static inline int cudaBestGrid(int n) {
 
 #ifdef __DIM_BLOCK
 
+texture<int2, 1> texTipVector;
+texture<int2, 1> texExtEV;
+
+__device__ __forceinline__ static double fetchDouble(texture<int2, 1> t,
+                                                     int i) {
+  int2 v = tex1Dfetch(t, i);
+  return __hiloint2double(v.y, v.x);
+}
+
 __global__ static void cudaEvaluateLeftDBGammaKernel(int *wptr, double *x2,
-                                                     double *tipVector,
                                                      unsigned char *tipX1,
                                                      double *diagptable,
                                                      double *output) {
   __shared__ double term[16];
   const int tid = threadIdx.y * 4 + threadIdx.x;
-  term[tid] = tipVector[4 * tipX1[blockIdx.x] + threadIdx.x] *
+  term[tid] = fetchDouble(texTipVector, 4 * tipX1[blockIdx.x] + threadIdx.x) *
               x2[16 * blockIdx.x + tid] * diagptable[tid];
   __syncthreads();
   if (threadIdx.y <= 1) {
@@ -75,24 +83,22 @@ __global__ static void cudaSumIIGammaDBKernel(double *x1, double *x2,
 }
 
 __global__ static void cudaSumTIGammaDBKernel(unsigned char *tipX1, double *x2,
-                                              double *tipVector,
                                               double *sumtable) {
   const int offset = blockIdx.x * 16 + threadIdx.y * 4 + threadIdx.x;
   sumtable[offset] =
-      tipVector[4 * tipX1[blockIdx.x] + threadIdx.x] * x2[offset];
+      fetchDouble(texTipVector, 4 * tipX1[blockIdx.x] + threadIdx.x) *
+      x2[offset];
 }
 
 __global__ static void cudaSumTTGammaDBKernel(unsigned char *tipX1,
                                               unsigned char *tipX2,
-                                              double *tipVector,
                                               double *sumtable) {
   sumtable[blockIdx.x * 16 + threadIdx.y * 4 + threadIdx.x] =
-      tipVector[4 * tipX1[blockIdx.x] + threadIdx.x] *
-      tipVector[4 * tipX2[blockIdx.x] + threadIdx.x];
+      fetchDouble(texTipVector, 4 * tipX1[blockIdx.x] + threadIdx.x) *
+      fetchDouble(texTipVector, 4 * tipX2[blockIdx.x] + threadIdx.x);
 }
 
-__global__ static void cudaTTGammaDBKernel(double *x3, double *extEV,
-                                           double *uX1, double *uX2,
+__global__ static void cudaTTGammaDBKernel(double *x3, double *uX1, double *uX2,
                                            unsigned char *tipX1,
                                            unsigned char *tipX2) {
   __shared__ double x1px2[16], v[64];
@@ -103,7 +109,8 @@ __global__ static void cudaTTGammaDBKernel(double *x3, double *extEV,
                       uX2[16 * tipX2[blockIdx.x] + squareId];
   }
   __syncthreads();
-  v[tid] = x1px2[squareId] * extEV[4 * threadIdx.y + threadIdx.x];
+  v[tid] =
+      x1px2[squareId] * fetchDouble(texExtEV, 4 * threadIdx.y + threadIdx.x);
   __syncthreads();
   if (threadIdx.y <= 1) {
     v[tid] += v[tid + 8];
@@ -114,12 +121,13 @@ __global__ static void cudaTTGammaDBKernel(double *x3, double *extEV,
   }
 }
 
-__global__ static void cudaPreTTGammaDBKernel(double *v, double *l, double *r,
+__global__ static void cudaPreTTGammaDBKernel(double *l, double *r,
                                               double *umpX1, double *umpX2) {
   __shared__ double ump[64];
   const int tid = threadIdx.y * 4 + threadIdx.x;
   if (blockIdx.y == 0) {
-    ump[tid] = v[4 * blockIdx.x + threadIdx.x] * l[tid];
+    ump[tid] = fetchDouble(texTipVector, 4 * blockIdx.x + threadIdx.x) * l[tid];
+    __syncthreads();
     if (threadIdx.x <= 1) {
       ump[tid] += ump[tid + 2];
     }
@@ -128,7 +136,8 @@ __global__ static void cudaPreTTGammaDBKernel(double *v, double *l, double *r,
       umpX1[blockIdx.x * 16 + threadIdx.y] = ump[tid];
     }
   } else {
-    ump[tid] = v[4 * blockIdx.x + threadIdx.x] * r[tid];
+    ump[tid] = fetchDouble(texTipVector, 4 * blockIdx.x + threadIdx.x) * r[tid];
+    __syncthreads();
     if (threadIdx.x <= 1) {
       ump[tid] += ump[tid + 2];
     }
@@ -139,11 +148,11 @@ __global__ static void cudaPreTTGammaDBKernel(double *v, double *l, double *r,
   }
 }
 
-__global__ static void cudaPreTIGammaDBKernel(double *t, double *l,
-                                              double *ump) {
+__global__ static void cudaPreTIGammaDBKernel(double *l, double *ump) {
   __shared__ double sump[64];
   const int tid = threadIdx.y * 4 + threadIdx.x;
-  sump[tid] = t[4 * blockIdx.x + threadIdx.x] * l[tid];
+  sump[tid] = fetchDouble(texTipVector, 4 * blockIdx.x + threadIdx.x) * l[tid];
+  __syncthreads();
   if (threadIdx.x <= 1) {
     sump[tid] += sump[tid + 2];
   }
@@ -154,7 +163,7 @@ __global__ static void cudaPreTIGammaDBKernel(double *t, double *l,
 }
 
 __global__ static void cudaTIGammaDBKernel(double *x2, double *x3,
-                                           double *extEV, unsigned char *tipX1,
+                                           unsigned char *tipX1,
                                            unsigned char *tipX2, double *r,
                                            double *uX1, double *uX2) {
   __shared__ double ump[64], x1px2[16], v[64];
@@ -172,7 +181,8 @@ __global__ static void cudaTIGammaDBKernel(double *x2, double *x3,
     x1px2[squareId] = uX1[squareId] * ump[tid];
   }
   __syncthreads();
-  v[tid] = x1px2[squareId] * extEV[threadIdx.y * 4 + threadIdx.x];
+  v[tid] =
+      x1px2[squareId] * fetchDouble(texExtEV, threadIdx.y * 4 + threadIdx.x);
   __syncthreads();
   if (threadIdx.y <= 1) {
     v[tid] += v[tid + 8];
@@ -184,8 +194,7 @@ __global__ static void cudaTIGammaDBKernel(double *x2, double *x3,
 }
 
 __global__ static void cudaIIGammaDBKernel(double *x1, double *x2, double *x3,
-                                           double *extEV, double *left,
-                                           double *right) {
+                                           double *left, double *right) {
   __shared__ double al[64], ar[64], v[64], x1px2[16];
   const int tid = (threadIdx.z * 16) + (threadIdx.y * 4) + threadIdx.x;
   const int offset = 16 * blockIdx.x + 4 * threadIdx.z;
@@ -203,7 +212,7 @@ __global__ static void cudaIIGammaDBKernel(double *x1, double *x2, double *x3,
   }
   __syncthreads();
   v[tid] = x1px2[threadIdx.y + (threadIdx.z * 4)] *
-           extEV[threadIdx.y * 4 + threadIdx.x];
+           fetchDouble(texExtEV, threadIdx.y * 4 + threadIdx.x);
   __syncthreads();
   if (threadIdx.y <= 1) {
     v[tid] += v[tid + 8];
@@ -607,6 +616,12 @@ extern "C" void cudaGPCopyModel(CudaGP *dst, double *evSrc, unsigned int evSize,
              cudaMemcpyHostToDevice);
   cudaMemcpy(dst->tipVector, tipSrc, tipSize * sizeof(double),
              cudaMemcpyHostToDevice);
+#ifdef __DIM_BLOCK
+  cudaUnbindTexture(texTipVector);
+  cudaBindTexture(NULL, texTipVector, dst->tipVector, tipSize * sizeof(double));
+  cudaUnbindTexture(texExtEV);
+  cudaBindTexture(NULL, texExtEV, dst->extEV, evSize * sizeof(double));
+#endif
 }
 
 extern "C" double cudaEvaluateGAMMA(int *wptr, double *x1_start,
@@ -619,7 +634,7 @@ extern "C" double cudaEvaluateGAMMA(int *wptr, double *x1_start,
   dim3 block(4, 4, 1);
   if (tipX1) {
     cudaEvaluateLeftDBGammaKernel<<<n, block>>>(
-        wptr, x2_start, p->tipVector, tipX1, p->diagptable, p->reduceBufferB);
+        wptr, x2_start, tipX1, p->diagptable, p->reduceBufferB);
   } else {
     cudaEvaluateRightDBGammaKernel<<<n, block>>>(
         wptr, x1_start, x2_start, p->diagptable, p->reduceBufferB);
@@ -678,10 +693,9 @@ extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
     dim3 pregrid(MAX_STATE_VALUE, 2, 1);
     dim3 preblock(4, 16, 1);
     dim3 block(4, 4, 4);
-    cudaPreTTGammaDBKernel<<<pregrid, preblock>>>(p->tipVector, p->left,
-                                                  p->right, p->umpX1, p->umpX2);
-    cudaTTGammaDBKernel<<<n, block>>>(x3, p->extEV, p->umpX1, p->umpX2, tipX1,
-                                      tipX2);
+    cudaPreTTGammaDBKernel<<<pregrid, preblock>>>(p->left, p->right, p->umpX1,
+                                                  p->umpX2);
+    cudaTTGammaDBKernel<<<n, block>>>(x3, p->umpX1, p->umpX2, tipX1, tipX2);
 #else
     cudaPreTTGammaKernel<<<MAX_STATE_VALUE * 2, p->span>>>(
         p->tipVector, p->left, p->right, p->umpX1, p->umpX2, MAX_STATE_VALUE);
@@ -693,10 +707,9 @@ extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
 #ifdef __DIM_BLOCK
     dim3 preblock(4, 16, 1);
     dim3 block(4, 4, 4);
-    cudaPreTIGammaDBKernel<<<MAX_STATE_VALUE, preblock>>>(p->tipVector, p->left,
-                                                          p->umpX1);
-    cudaTIGammaDBKernel<<<n, block>>>(x2, x3, p->extEV, tipX1, tipX2, p->right,
-                                      p->umpX1, p->umpX2);
+    cudaPreTIGammaDBKernel<<<MAX_STATE_VALUE, preblock>>>(p->left, p->umpX1);
+    cudaTIGammaDBKernel<<<n, block>>>(x2, x3, tipX1, tipX2, p->right, p->umpX1,
+                                      p->umpX2);
 #else
 
     cudaPreTIGammaKernel<<<MAX_STATE_VALUE, p->span>>>(
@@ -711,7 +724,7 @@ extern "C" void cudaNewViewGAMMA(int tipCase, double *x1, double *x2,
   case INNER_INNER: {
 #ifdef __DIM_BLOCK
     dim3 block(4, 4, 4);
-    cudaIIGammaDBKernel<<<n, block>>>(x1, x2, x3, p->extEV, p->left, p->right);
+    cudaIIGammaDBKernel<<<n, block>>>(x1, x2, x3, p->left, p->right);
 #else
     cudaIIGammaKernel<<<GRID_SIZE_4N, BLOCK_SIZE>>>(x1, x2, x3, p->extEV,
                                                     p->left, p->right, n * 4);
@@ -735,11 +748,10 @@ extern "C" void cudaSumGAMMA(int tipCase, double *sumtable, double *x1,
   dim3 block(4, 4, 1);
   switch (tipCase) {
   case TIP_TIP:
-    cudaSumTTGammaDBKernel<<<n, block>>>(tipX1, tipX2, p->tipVector,
-                                         p->sumBuffer);
+    cudaSumTTGammaDBKernel<<<n, block>>>(tipX1, tipX2, p->sumBuffer);
     break;
   case TIP_INNER:
-    cudaSumTIGammaDBKernel<<<n, block>>>(tipX1, x2, p->tipVector, p->sumBuffer);
+    cudaSumTIGammaDBKernel<<<n, block>>>(tipX1, x2, p->sumBuffer);
     break;
   case INNER_INNER:
     cudaSumIIGammaDBKernel<<<n, block>>>(x1, x2, p->sumBuffer);
