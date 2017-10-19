@@ -39,12 +39,9 @@ __global__ static void cudaEvaluateLeftDBGammaKernel(int *wptr, double *x2,
     }
     if (threadIdx.x == 0) {
       term[tid] += term[tid + 1];
+      term[tid] = LOG(0.25 * FABS(term[tid]));
+      output[blockIdx.x] = wptr[blockIdx.x] * term[tid];
     }
-  }
-  __syncthreads();
-  if (tid == 0) {
-    term[tid] = LOG(0.25 * FABS(term[tid]));
-    output[blockIdx.x] = wptr[blockIdx.x] * term[tid];
   }
 }
 
@@ -67,12 +64,9 @@ __global__ static void cudaEvaluateRightDBGammaKernel(int *wptr, double *x1,
     }
     if (threadIdx.x == 0) {
       term[tid] += term[tid + 1];
+      term[tid] = LOG(0.25 * FABS(term[tid]));
+      output[blockIdx.x] = wptr[blockIdx.x] * term[tid];
     }
-  }
-  __syncthreads();
-  if (tid == 0) {
-    term[tid] = LOG(0.25 * FABS(term[tid]));
-    output[blockIdx.x] = wptr[blockIdx.x] * term[tid];
   }
 }
 
@@ -178,6 +172,7 @@ __global__ static void cudaTIGammaDBKernel(double *x2, double *x3,
   }
   if (threadIdx.x == 0) {
     ump[tid] += ump[tid + 1];
+    uX2[tid] = uX2[4 * blockIdx.x + threadIdx.y];
     x1px2[squareId] = uX1[squareId] * ump[tid];
   }
   __syncthreads();
