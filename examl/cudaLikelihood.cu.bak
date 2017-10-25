@@ -26,6 +26,7 @@ __global__ static void cudaTTGammaKernel(double *extEV, double *x3, double *uX1,
   if (threadIdx.y <= 1) {
     v[tid] += v[tid + 8];
   }
+  __syncthreads();
   if (threadIdx.y == 0) {
     v[tid] += v[tid + 4];
     x3[blockIdx.x * 16 + threadIdx.z * 4 + threadIdx.x] = v[tid];
@@ -46,9 +47,10 @@ __global__ static void cudaTIGammaKernel(double *extEV, double *x2, double *x3,
   if (threadIdx.x <= 1) {
     ump[tid] += ump[tid + 2];
   }
+  __syncthreads();
   if (threadIdx.x == 0) {
     ump[tid] += ump[tid + 1];
-    uX2[tid] = uX2[4 * blockIdx.x + threadIdx.y];
+    uX2[4 * blockIdx.x + threadIdx.y] = ump[tid];
     x1px2[squareId] = uX1[squareId] * ump[tid];
   }
   __syncthreads();
@@ -57,6 +59,7 @@ __global__ static void cudaTIGammaKernel(double *extEV, double *x2, double *x3,
   if (threadIdx.y <= 1) {
     v[tid] += v[tid + 8];
   }
+  __syncthreads();
   if (threadIdx.y == 0) {
     v[tid] += v[tid + 4];
     x3[offset + threadIdx.x] = v[tid];
@@ -76,6 +79,7 @@ __global__ static void cudaIIGammaKernel(double *extEV, double *x1, double *x2,
     al[tid] += al[tid + 2];
     ar[tid] += ar[tid + 2];
   }
+  __syncthreads();
   if (threadIdx.x == 0) {
     al[tid] += al[tid + 1];
     ar[tid] += ar[tid + 1];
@@ -88,6 +92,7 @@ __global__ static void cudaIIGammaKernel(double *extEV, double *x1, double *x2,
   if (threadIdx.y <= 1) {
     v[tid] += v[tid + 8];
   }
+  __syncthreads();
   if (threadIdx.y == 0) {
     v[tid] += v[tid + 4];
     x3[offset + threadIdx.x] = v[tid];

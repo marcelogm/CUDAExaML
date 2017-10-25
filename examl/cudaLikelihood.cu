@@ -38,19 +38,22 @@ __global__ static void cudaEvaluateLeftDBGammaKernel(int *wptr, double *x2,
     {
         term[tid] += term[tid + 8];
     }
+    __syncthreads();
     if (threadIdx.y == 0)
     {
         term[tid] += term[tid + 4];
-        if (threadIdx.x <= 1)
-        {
-            term[tid] += term[tid + 2];
-        }
-        if (threadIdx.x == 0)
-        {
-            term[tid] += term[tid + 1];
-            term[tid] = LOG(0.25 * FABS(term[tid]));
-            output[blockIdx.x] = wptr[blockIdx.x] * term[tid];
-        }
+    }
+    __syncthreads();
+    if (threadIdx.y == 0 && threadIdx.x <= 1)
+    {
+        term[tid] += term[tid + 2];
+    }
+    __syncthreads();
+    if (tid == 0)
+    {
+        term[tid] += term[tid + 1];
+        term[tid] = LOG(0.25 * FABS(term[tid]));
+        output[blockIdx.x] = wptr[blockIdx.x] * term[tid];
     }
 }
 
@@ -92,6 +95,7 @@ __global__ static void cudaTTGammaDBKernel(double *x3, double *uX1, double *uX2,
     {
         v[tid] += v[tid + 8];
     }
+    __syncthreads();
     if (threadIdx.y == 0)
     {
         v[tid] += v[tid + 4];
@@ -112,6 +116,7 @@ __global__ static void cudaPreTTGammaDBKernel(double *l, double *r,
         {
             ump[tid] += ump[tid + 2];
         }
+        __syncthreads();
         if (threadIdx.x == 0)
         {
             ump[tid] += ump[tid + 1];
@@ -126,6 +131,7 @@ __global__ static void cudaPreTTGammaDBKernel(double *l, double *r,
         {
             ump[tid] += ump[tid + 2];
         }
+        __syncthreads();
         if (threadIdx.x == 0)
         {
             ump[tid] += ump[tid + 1];
@@ -144,6 +150,7 @@ __global__ static void cudaPreTIGammaDBKernel(double *l, double *ump)
     {
         sump[tid] += sump[tid + 2];
     }
+    __syncthreads();
     if (threadIdx.x == 0)
     {
         sump[tid] += sump[tid + 1];
@@ -167,6 +174,7 @@ __global__ static void cudaTIGammaDBKernel(double *x2, double *x3,
     {
         ump[tid] += ump[tid + 2];
     }
+    __syncthreads();
     if (threadIdx.x == 0)
     {
         ump[tid] += ump[tid + 1];
@@ -181,6 +189,7 @@ __global__ static void cudaTIGammaDBKernel(double *x2, double *x3,
     {
         v[tid] += v[tid + 8];
     }
+    __syncthreads();
     if (threadIdx.y == 0)
     {
         v[tid] += v[tid + 4];
@@ -202,6 +211,7 @@ __global__ static void cudaIIGammaDBKernel(double *x1, double *x2, double *x3,
         al[tid] += al[tid + 2];
         ar[tid] += ar[tid + 2];
     }
+    __syncthreads();
     if (threadIdx.x == 0)
     {
         al[tid] += al[tid + 1];
@@ -216,6 +226,7 @@ __global__ static void cudaIIGammaDBKernel(double *x1, double *x2, double *x3,
     {
         v[tid] += v[tid + 8];
     }
+    __syncthreads();
     if (threadIdx.y == 0)
     {
         v[tid] += v[tid + 4];
@@ -239,19 +250,22 @@ __global__ static void cudaEvaluateLeftDBGammaKernel(double *tipVector, int *wpt
     {
         term[tid] += term[tid + 8];
     }
+    __syncthreads();
     if (threadIdx.y == 0)
     {
         term[tid] += term[tid + 4];
-        if (threadIdx.x <= 1)
-        {
-            term[tid] += term[tid + 2];
-        }
-        if (threadIdx.x == 0)
-        {
-            term[tid] += term[tid + 1];
-            term[tid] = LOG(0.25 * FABS(term[tid]));
-            output[blockIdx.x] = wptr[blockIdx.x] * term[tid];
-        }
+    }
+    __syncthreads();
+    if (threadIdx.y == 0 && threadIdx.x <= 1)
+    {
+        term[tid] += term[tid + 2];
+    }
+    __syncthreads();
+    if (tid == 0)
+    {
+        term[tid] += term[tid + 1];
+        term[tid] = LOG(0.25 * FABS(term[tid]));
+        output[blockIdx.x] = wptr[blockIdx.x] * term[tid];
     }
 }
 
@@ -293,6 +307,7 @@ __global__ static void cudaTTGammaDBKernel(double *extEV, double *x3, double *uX
     {
         v[tid] += v[tid + 8];
     }
+    __syncthreads();
     if (threadIdx.y == 0)
     {
         v[tid] += v[tid + 4];
@@ -313,6 +328,7 @@ __global__ static void cudaPreTTGammaDBKernel(double *tipVector, double *l, doub
         {
             ump[tid] += ump[tid + 2];
         }
+        __syncthreads();
         if (threadIdx.x == 0)
         {
             ump[tid] += ump[tid + 1];
@@ -327,6 +343,7 @@ __global__ static void cudaPreTTGammaDBKernel(double *tipVector, double *l, doub
         {
             ump[tid] += ump[tid + 2];
         }
+        __syncthreads();
         if (threadIdx.x == 0)
         {
             ump[tid] += ump[tid + 1];
@@ -345,6 +362,7 @@ __global__ static void cudaPreTIGammaDBKernel(double *tipVector, double *l, doub
     {
         sump[tid] += sump[tid + 2];
     }
+    __syncthreads();
     if (threadIdx.x == 0)
     {
         sump[tid] += sump[tid + 1];
@@ -368,6 +386,7 @@ __global__ static void cudaTIGammaDBKernel(double *extEV, double *x2, double *x3
     {
         ump[tid] += ump[tid + 2];
     }
+    __syncthreads();
     if (threadIdx.x == 0)
     {
         ump[tid] += ump[tid + 1];
@@ -382,6 +401,7 @@ __global__ static void cudaTIGammaDBKernel(double *extEV, double *x2, double *x3
     {
         v[tid] += v[tid + 8];
     }
+    __syncthreads();
     if (threadIdx.y == 0)
     {
         v[tid] += v[tid + 4];
@@ -403,6 +423,7 @@ __global__ static void cudaIIGammaDBKernel(double *extEV, double *x1, double *x2
         al[tid] += al[tid + 2];
         ar[tid] += ar[tid + 2];
     }
+    __syncthreads();
     if (threadIdx.x == 0)
     {
         al[tid] += al[tid + 1];
@@ -416,6 +437,7 @@ __global__ static void cudaIIGammaDBKernel(double *extEV, double *x1, double *x2
     {
         v[tid] += v[tid + 8];
     }
+    __syncthreads();
     if (threadIdx.y == 0)
     {
         v[tid] += v[tid + 4];
@@ -439,19 +461,22 @@ __global__ static void cudaEvaluateRightDBGammaKernel(int *wptr, double *x1,
     {
         term[tid] += term[tid + 8];
     }
+    __syncthreads();
     if (threadIdx.y == 0)
     {
         term[tid] += term[tid + 4];
-        if (threadIdx.x <= 1)
-        {
-            term[tid] += term[tid + 2];
-        }
-        if (threadIdx.x == 0)
-        {
-            term[tid] += term[tid + 1];
-            term[tid] = LOG(0.25 * FABS(term[tid]));
-            output[blockIdx.x] = wptr[blockIdx.x] * term[tid];
-        }
+    }
+    __syncthreads();
+    if (threadIdx.y == 0 && threadIdx.x <= 1)
+    {
+        term[tid] += term[tid + 2];
+    }
+    __syncthreads();
+    if (tid == 0)
+    {
+        term[tid] += term[tid + 1];
+        term[tid] = LOG(0.25 * FABS(term[tid]));
+        output[blockIdx.x] = wptr[blockIdx.x] * term[tid];
     }
 }
 
