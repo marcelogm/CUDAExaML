@@ -767,13 +767,15 @@ __global__ static void cudaAScaleGammaKernel(double *x3, int *addScale,
         return;
     x3 += 16 * i;
     int l, scale = 1;
-#pragma unroll for (l = 0; scale && (l < 16); l++)
+#pragma unroll 
+for (l = 0; scale && (l < 16); l++)
     {
         scale = (ABS(x3[l]) < minlikelihood);
     }
     if (scale)
     {
-#pragma unroll for (l = 0; l < 16; l++)
+#pragma unroll 
+for (l = 0; l < 16; l++)
         x3[l] *= twotothe256;
         atomicAdd(addScale, wgt[i]);
     }
