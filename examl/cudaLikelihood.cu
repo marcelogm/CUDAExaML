@@ -29,7 +29,7 @@ __global__ static void cudaEvaluateLeftDBGammaKernel(int *wptr, double *x2,
                                                      double *diagptable,
                                                      double *output)
 {
-    __shared__ double term[16];
+    __shared__ volatile double term[16];
     const int tid = threadIdx.y * 4 + threadIdx.x;
     term[tid] = fetchDouble(texTipVector, 4 * tipX1[blockIdx.x] + threadIdx.x) *
                 x2[16 * blockIdx.x + tid] * diagptable[tid];
@@ -76,7 +76,7 @@ __global__ static void cudaTTGammaDBKernel(double *x3, double *uX1, double *uX2,
                                            unsigned char *tipX1,
                                            unsigned char *tipX2)
 {
-    __shared__ double x1px2[16], v[64];
+    __shared__ volatile double x1px2[16], v[64];
     const int tid = threadIdx.z * 16 + threadIdx.y * 4 + threadIdx.x;
     const int squareId = threadIdx.z * 4 + threadIdx.y;
     if (threadIdx.x == 0)
@@ -102,7 +102,7 @@ __global__ static void cudaTTGammaDBKernel(double *x3, double *uX1, double *uX2,
 __global__ static void cudaPreTTGammaDBKernel(double *l, double *r,
                                               double *umpX1, double *umpX2)
 {
-    __shared__ double ump[64];
+    __shared__ volatile double ump[64];
     const int tid = threadIdx.y * 4 + threadIdx.x;
     if (blockIdx.y == 0)
     {
@@ -136,7 +136,7 @@ __global__ static void cudaPreTTGammaDBKernel(double *l, double *r,
 
 __global__ static void cudaPreTIGammaDBKernel(double *l, double *ump)
 {
-    __shared__ double sump[64];
+    __shared__ volatile double sump[64];
     const int tid = threadIdx.y * 4 + threadIdx.x;
     sump[tid] = fetchDouble(texTipVector, 4 * blockIdx.x + threadIdx.x) * l[tid];
     __syncthreads();
@@ -156,7 +156,7 @@ __global__ static void cudaTIGammaDBKernel(double *x2, double *x3,
                                            unsigned char *tipX2, double *r,
                                            double *uX1, double *uX2)
 {
-    __shared__ double ump[64], x1px2[16], v[64];
+    __shared__ volatile double ump[64], x1px2[16], v[64];
     const int tid = (threadIdx.z * 16) + (threadIdx.y * 4) + threadIdx.x;
     const int offset = 16 * blockIdx.x + threadIdx.z * 4;
     const int squareId = threadIdx.z * 4 + threadIdx.y;
@@ -191,7 +191,7 @@ __global__ static void cudaTIGammaDBKernel(double *x2, double *x3,
 __global__ static void cudaIIGammaDBKernel(double *x1, double *x2, double *x3,
                                            double *left, double *right)
 {
-    __shared__ double al[64], ar[64], v[64], x1px2[16];
+    __shared__ volatile double al[64], ar[64], v[64], x1px2[16];
     const int tid = (threadIdx.z * 16) + (threadIdx.y * 4) + threadIdx.x;
     const int offset = 16 * blockIdx.x + 4 * threadIdx.z;
     al[tid] = x1[offset + threadIdx.x] * left[tid];
@@ -230,7 +230,7 @@ __global__ static void cudaEvaluateLeftDBGammaKernel(double *tipVector, int *wpt
                                                      double *diagptable,
                                                      double *output)
 {
-    __shared__ double term[16];
+    __shared__ volatile double term[16];
     const int tid = threadIdx.y * 4 + threadIdx.x;
     term[tid] = tipVector[4 * tipX1[blockIdx.x] + threadIdx.x] *
                 x2[16 * blockIdx.x + tid] * diagptable[tid];
@@ -277,7 +277,7 @@ __global__ static void cudaTTGammaDBKernel(double *extEV, double *x3, double *uX
                                            unsigned char *tipX1,
                                            unsigned char *tipX2)
 {
-    __shared__ double x1px2[16], v[64];
+    __shared__ volatile double x1px2[16], v[64];
     const int tid = threadIdx.z * 16 + threadIdx.y * 4 + threadIdx.x;
     const int squareId = threadIdx.z * 4 + threadIdx.y;
     if (threadIdx.x == 0)
@@ -303,7 +303,7 @@ __global__ static void cudaTTGammaDBKernel(double *extEV, double *x3, double *uX
 __global__ static void cudaPreTTGammaDBKernel(double *tipVector, double *l, double *r,
                                               double *umpX1, double *umpX2)
 {
-    __shared__ double ump[64];
+    __shared__ volatile double ump[64];
     const int tid = threadIdx.y * 4 + threadIdx.x;
     if (blockIdx.y == 0)
     {
@@ -337,7 +337,7 @@ __global__ static void cudaPreTTGammaDBKernel(double *tipVector, double *l, doub
 
 __global__ static void cudaPreTIGammaDBKernel(double *tipVector, double *l, double *ump)
 {
-    __shared__ double sump[64];
+    __shared__ volatile double sump[64];
     const int tid = threadIdx.y * 4 + threadIdx.x;
     sump[tid] = tipVector[4 * blockIdx.x + threadIdx.x] * l[tid];
     __syncthreads();
@@ -357,7 +357,7 @@ __global__ static void cudaTIGammaDBKernel(double *extEV, double *x2, double *x3
                                            unsigned char *tipX2, double *r,
                                            double *uX1, double *uX2)
 {
-    __shared__ double ump[64], x1px2[16], v[64];
+    __shared__ volatile double ump[64], x1px2[16], v[64];
     const int tid = (threadIdx.z * 16) + (threadIdx.y * 4) + threadIdx.x;
     const int offset = 16 * blockIdx.x + threadIdx.z * 4;
     const int squareId = threadIdx.z * 4 + threadIdx.y;
@@ -392,7 +392,7 @@ __global__ static void cudaTIGammaDBKernel(double *extEV, double *x2, double *x3
 __global__ static void cudaIIGammaDBKernel(double *extEV, double *x1, double *x2, double *x3,
                                            double *left, double *right)
 {
-    __shared__ double al[64], ar[64], v[64], x1px2[16];
+    __shared__ volatile double al[64], ar[64], v[64], x1px2[16];
     const int tid = (threadIdx.z * 16) + (threadIdx.y * 4) + threadIdx.x;
     const int offset = 16 * blockIdx.x + 4 * threadIdx.z;
     al[tid] = x1[offset + threadIdx.x] * left[tid];
@@ -430,7 +430,7 @@ __global__ static void cudaEvaluateRightDBGammaKernel(int *wptr, double *x1,
                                                       double *diagptable,
                                                       double *output)
 {
-    __shared__ double term[16];
+    __shared__ volatile double term[16];
     const int tid = threadIdx.y * 4 + threadIdx.x;
     term[tid] =
         x1[16 * blockIdx.x + tid] * x2[16 * blockIdx.x + tid] * diagptable[tid];
@@ -725,10 +725,10 @@ __global__ static void cudaCoreGammaKernel(double *sumtable, double *diagptable,
         return;
     }
     double *sum = &sumtable[i * 16];
-    double inv_Li = 0.0;
-    double dlnLidlz = 0.0;
-    double d2lnLidlz2 = 0.0;
-    double tmp;
+    volatile double inv_Li = 0.0;
+    volatile double dlnLidlz = 0.0;
+    volatile double d2lnLidlz2 = 0.0;
+    volatile double tmp;
     int j, l;
     for (j = 0; j < 4; j++)
     {
