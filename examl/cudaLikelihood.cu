@@ -499,6 +499,7 @@ __global__ static void cudaTTGammaKernel(double *v, double *extEV, double *uX1,
     uX2 += 16 * tipX2[i] + j;
     v[0] = v[1] = v[2] = v[3] = 0.0;
     double x1px2;
+#pragma unroll
     for (int k = 0; k < 4; k++)
     {
         x1px2 = uX1[k] * uX2[k];
@@ -537,6 +538,7 @@ __global__ static void cudaTIGammaKernel(double *x2, double *x3, double *extEV,
     r += k * 16;
     x2 += 16 * i + k * 4;
 
+#pragma unroll
     for (l = 0; l < 4; l++)
     {
         uX2[l] = 0.0;
@@ -550,6 +552,7 @@ __global__ static void cudaTIGammaKernel(double *x2, double *x3, double *extEV,
     x3 += 16 * i + 4 * k;
     x3[0] = x3[1] = x3[2] = x3[3] = 0.0;
 
+#pragma unroll
     for (l = 0; l < 4; l++)
     {
         x1px2 = uX1[k * 4 + l] * uX2[l];
@@ -580,6 +583,7 @@ __global__ static void cudaIIGammaKernel(double *x1, double *x2, double *x3,
 
     left += k * 16;
     right += k * 16;
+#pragma unroll
     for (l = 0; l < 4; l++)
     {
         al = x1[0] * left[0] + x1[1] * left[1] + x1[2] * left[2] + x1[3] * left[3];
@@ -613,6 +617,7 @@ cudaEvaluateLeftGammaKernel(int *wptr, double *x2, double *tipVector,
     double term = 0.0;
     tipVector += 4 * tipX1[i];
     x2 += 16 * i;
+#pragma unroll
     for (j = 0; j < 4; j++)
     {
         term += tipVector[0] * x2[0] * diagptable[0] +
@@ -642,6 +647,7 @@ __global__ static void cudaEvaluateRightGammaKernel(int *wptr, double *x1,
     double term = 0.0;
     x1 += 16 * i;
     x2 += 16 * i;
+#pragma unroll
     for (j = 0; j < 4; j++)
     {
         term += x1[0] * x2[0] * diagptable[0] + x1[1] * x2[1] * diagptable[1] +
@@ -668,6 +674,7 @@ __global__ static void cudaSumTTGammaKernel(unsigned char *tipX1,
     double *left = &(tipVector[4 * tipX1[i]]);
     double *right = &(tipVector[4 * tipX2[i]]);
     double *sum = &sumtable[i * 16 + j * 4];
+#pragma unroll
     for (int k = 0; k < 4; k++)
     {
         sum[k] = left[k] * right[k];
@@ -687,6 +694,7 @@ __global__ static void cudaSumTIGammaKernel(unsigned char *tipX1, double *x2,
     double *left = &(tipVector[4 * tipX1[i]]);
     double *right = &(x2[16 * i + l * 4]);
     double *sum = &sumtable[i * 16 + l * 4];
+#pragma unroll
     for (int k = 0; k < 4; k++)
     {
         sum[k] = left[k] * right[k];
@@ -705,6 +713,7 @@ __global__ static void cudaSumIIGammaKernel(double *x1, double *x2,
     double *left = &(x1[16 * i + l * 4]);
     double *right = &(x2[16 * i + l * 4]);
     double *sum = &(sumtable[i * 16 + l * 4]);
+#pragma unroll
     for (int k = 0; k < 4; k++)
     {
         sum[k] = left[k] * right[k];
@@ -730,10 +739,12 @@ __global__ static void cudaCoreGammaKernel(double *sumtable, double *diagptable,
     volatile double d2lnLidlz2 = 0.0;
     volatile double tmp;
     int j, l;
+#pragma unroll
     for (j = 0; j < 4; j++)
     {
         inv_Li += sum[j * 4];
 
+#pragma unroll
         for (l = 1; l < 4; l++)
         {
             inv_Li += (tmp = diagptable[j * 16 + l * 4] * sum[j * 4 + l]);
@@ -756,14 +767,14 @@ __global__ static void cudaAScaleGammaKernel(double *x3, int *addScale,
         return;
     x3 += 16 * i;
     int l, scale = 1;
-    for (l = 0; scale && (l < 16); l++)
+#pragma unroll for (l = 0; scale && (l < 16); l++)
     {
         scale = (ABS(x3[l]) < minlikelihood);
     }
     if (scale)
     {
-        for (l = 0; l < 16; l++)
-            x3[l] *= twotothe256;
+#pragma unroll for (l = 0; l < 16; l++)
+        x3[l] *= twotothe256;
         atomicAdd(addScale, wgt[i]);
     }
 }
@@ -873,6 +884,7 @@ extern "C" CudaGP *cudaGPAlloc(const int n, const int states,
     p->hReduceBuffer = (double *)malloc(sizeof(double) * GRID_SIZE_N);
     // xVector allocation
     p->xVector = (double **)malloc(sizeof(double *) * taxa);
+#pragma unroll
     for (i = 0; i < taxa; i++)
     {
         p->xVector[i] = (double *)NULL;
@@ -882,6 +894,7 @@ extern "C" CudaGP *cudaGPAlloc(const int n, const int states,
     cudaMalloc(&p->yResource, taxa * n * sizeof(unsigned char));
     cudaMemcpy(p->yResource, yResource, taxa * n * sizeof(unsigned char),
                cudaMemcpyHostToDevice);
+#pragma unroll
     for (i = 1; i <= taxa; ++i)
     {
         p->yVector[i] = p->yResource + (i - 1) * n;
@@ -985,6 +998,7 @@ extern "C" double cudaEvaluateGAMMA(int *wptr, double *x1_start,
         p->reduceBufferB, p->reduceBufferA, n);
     cudaMemcpy(p->hReduceBuffer, p->reduceBufferA, GRID_SIZE_N * sizeof(double),
                cudaMemcpyDeviceToHost);
+#pragma unroll
     for (int i = 0; i < GRID_SIZE_N; i++)
     {
         sum += p->hReduceBuffer[i];
@@ -1139,11 +1153,13 @@ extern "C" void cudaCoreGAMMA(int upper, volatile double *ext_dlnLdlz,
     double diagptable[1024], ki, kisqr;
     int i, l;
 
+#pragma unroll
     for (i = 0; i < 4; i++)
     {
         ki = gammaRates[i];
         kisqr = ki * ki;
 
+#pragma unroll
         for (l = 1; l < 4; l++)
         {
             diagptable[i * 16 + l * 4] = EXP(EIGN[l] * ki * lz);
@@ -1199,6 +1215,7 @@ extern "C" void cudaCoreGAMMA(int upper, volatile double *ext_dlnLdlz,
         p->dlnLdlzBuffer, p->reduceBufferA, upper);
     cudaMemcpy(p->hReduceBuffer, p->reduceBufferA, GRID_SIZE_N * sizeof(double),
                cudaMemcpyDeviceToHost);
+#pragma unroll
     for (int i = 0; i < GRID_SIZE_N; i++)
     {
         *ext_dlnLdlz += p->hReduceBuffer[i];
@@ -1207,6 +1224,7 @@ extern "C" void cudaCoreGAMMA(int upper, volatile double *ext_dlnLdlz,
         p->d2lnLdlz2Buffer, p->reduceBufferA, upper);
     cudaMemcpy(p->hReduceBuffer, p->reduceBufferA, GRID_SIZE_N * sizeof(double),
                cudaMemcpyDeviceToHost);
+#pragma unroll
     for (int i = 0; i < GRID_SIZE_N; i++)
     {
         *ext_d2lnLdlz2 += p->hReduceBuffer[i];
